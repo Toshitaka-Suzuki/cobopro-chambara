@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="2160" viewBox="0 0 1560 2160" role="img" aria-labelledby="title desc">
+<title id="title">ロボットと剣を交える展示ゲームの体験絵コンテ v0.1</title>
+<desc id="desc">スタッフと準備、自動で動くロボットの剣に備える、剣で受けることに成功、短い打ち合い、ターゲット点灯、命中、守りへの復帰、決着の8場面。すべて検討用の模式図。認識と動作の関係、実機の配置や軌道は未確認。</desc>
+<defs><marker id="gaze" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10" fill="none" stroke="#2176AB" stroke-width="1.6"/></marker></defs>
+<g font-family="'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif">
+<rect width="1560" height="2160" fill="#EDF2F7"/>
+<text x="40" y="66" font-size="38" fill="#173B55" font-weight="700">剣を交えて、隙を作り、一撃を決める。</text>
+<text x="42" y="109" font-size="20" fill="#52637A" >体験絵コンテ v0.1  ｜  2026-09-22  ｜  ロボットは自動動作  ｜  基本案：受けた回数を一撃にする</text>
+<rect x="1330" y="34" width="190" height="42" rx="21" fill="#F5DFC0"/>
+<text x="1425" y="62" font-size="20" fill="#875817" text-anchor="middle" font-weight="700">仮案・検討用</text>
+<g transform="translate(40 158)"><rect width="728" height="460" rx="18" fill="#FFFFFF" stroke="#DCE3EC"/>
+ <rect x="22" y="20" width="40" height="36" rx="9" fill="#173B55"/><text x="42" y="45" font-size="21" fill="#FFFFFF" text-anchor="middle" font-weight="700">01</text>
+ <text x="78" y="46" font-size="26" fill="#173B55" font-weight="700">スタッフと準備</text><text x="24" y="78" font-size="18" fill="#52637A" >まず、遊び方と守るものが分かる。</text>
+ <rect x="20" y="96" width="688" height="236" rx="12" fill="#F5F8FC"/>
+ <path d="M50 290 H660" stroke="#CFD8E4" stroke-width="2"/>
+ <rect x="374" y="103" width="236" height="35" rx="6" fill="#E5EBF3"/><text x="492" y="127" font-size="18" fill="#35485F" text-anchor="middle" font-weight="600">遊び方</text>
+ <circle cx="120" cy="150" r="17" fill="#DDEEF8" stroke="#2176AB" stroke-width="4"/>
+ <path d="M120 169 V224 M120 224 L97 287 M120 224 L145 287 M120 182 L94 209" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M120 181 L155 196 L178 183" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M178 183 L218 141" fill="none" stroke="#2176AB" stroke-width="12" stroke-linecap="round"/>
+ <rect x="539" y="271" width="65" height="18" rx="4" fill="#A0ADBE"/>
+ <path d="M570 267 L570 236 L528 207 L488 163" fill="none" stroke="#75849A" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+ <g fill="#CED6E2" stroke="#75849A" stroke-width="3"><circle cx="570" cy="236" r="13"/><circle cx="528" cy="207" r="12"/><circle cx="488" cy="163" r="10"/></g>
+ <path d="M488 163 L388 185" fill="none" stroke="#75849A" stroke-width="12" stroke-linecap="round"/>
+ <path d="M243 264 V289 M226 289 H260" fill="none" stroke="#C3A59E" stroke-width="4"/>
+ <circle cx="243" cy="247" r="18" fill="#F9E2DA" stroke="#C97C66" stroke-width="2"/>
+ <path d="M243 229 C232 239 232 255 243 265 M243 229 C254 239 254 255 243 265" stroke="#D99F8D" stroke-width="1.5" fill="none"/>
+ <path d="M430 270 V289 M409 289 H451" fill="none" stroke="#B6A27B" stroke-width="5"/><circle cx="430" cy="248" r="25" fill="#E9E1D2" stroke="#A2947C" stroke-width="3"/>
+ <circle cx="430" cy="248" r="13" fill="none" stroke="#BFB4A1" stroke-width="3"/>
+ <text x="120" y="316" font-size="15" fill="#2176AB" text-anchor="middle">人</text><text x="243" y="316" font-size="15" fill="#9C6353" text-anchor="middle">紙風船</text><text x="430" y="316" font-size="15" fill="#8C691E" text-anchor="middle">ターゲット</text><text x="570" y="316" font-size="15" fill="#637186" text-anchor="middle">ロボット</text><rect x="34" y="104" width="212" height="25" rx="6" fill="#DAE8F4"/><text x="140" y="122" font-size="14" fill="#365772" text-anchor="middle">スタッフ：練習開始</text><path d="M24 345 H704" stroke="#E2E8F0"/><text x="26" y="371" font-size="16" fill="#698095" font-weight="700">行動</text><text x="78" y="371" font-size="18" fill="#25354A" >説明を聞き、剣を持って構える</text><text x="26" y="403" font-size="16" fill="#698095" font-weight="700">合図</text><text x="78" y="403" font-size="18" fill="#25354A" >「相手の剣を自分の剣で受けよう」</text><text x="26" y="435" font-size="16" fill="#698095" font-weight="700">進行</text><text x="78" y="435" font-size="18" fill="#25354A" >開始操作と準備状態をもとに次へ</text></g>
+<g transform="translate(792 158)"><rect width="728" height="460" rx="18" fill="#FFFFFF" stroke="#DCE3EC"/>
+ <rect x="22" y="20" width="40" height="36" rx="9" fill="#173B55"/><text x="42" y="45" font-size="21" fill="#FFFFFF" text-anchor="middle" font-weight="700">02</text>
+ <text x="78" y="46" font-size="26" fill="#173B55" font-weight="700">自動で動くロボットに備える</text><text x="24" y="78" font-size="18" fill="#52637A" >ロボットの動きに合わせ、剣を受ける準備。</text>
+ <rect x="20" y="96" width="688" height="236" rx="12" fill="#F5F8FC"/>
+ <path d="M50 290 H660" stroke="#CFD8E4" stroke-width="2"/>
+ <rect x="374" y="103" width="236" height="35" rx="6" fill="#E5EBF3"/><text x="492" y="127" font-size="18" fill="#35485F" text-anchor="middle" font-weight="600">剣で受けて！</text>
+ <circle cx="120" cy="150" r="17" fill="#DDEEF8" stroke="#2176AB" stroke-width="4"/>
+ <path d="M120 169 V224 M120 224 L97 287 M120 224 L145 287 M120 182 L94 209" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M120 181 L155 196 L178 183" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M178 183 L231 122" fill="none" stroke="#2176AB" stroke-width="12" stroke-linecap="round"/>
+ <rect x="539" y="271" width="65" height="18" rx="4" fill="#A0ADBE"/>
+ <path d="M570 267 L570 236 L528 207 L488 163" fill="none" stroke="#75849A" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+ <g fill="#CED6E2" stroke="#75849A" stroke-width="3"><circle cx="570" cy="236" r="13"/><circle cx="528" cy="207" r="12"/><circle cx="488" cy="163" r="10"/></g>
+ <path d="M488 163 L388 185" fill="none" stroke="#75849A" stroke-width="12" stroke-linecap="round"/>
+ <path d="M243 264 V289 M226 289 H260" fill="none" stroke="#C3A59E" stroke-width="4"/>
+ <circle cx="243" cy="247" r="18" fill="#F9E2DA" stroke="#C97C66" stroke-width="2"/>
+ <path d="M243 229 C232 239 232 255 243 265 M243 229 C254 239 254 255 243 265" stroke="#D99F8D" stroke-width="1.5" fill="none"/>
+ <path d="M430 270 V289 M409 289 H451" fill="none" stroke="#B6A27B" stroke-width="5"/><circle cx="430" cy="248" r="25" fill="#E9E1D2" stroke="#A2947C" stroke-width="3"/>
+ <circle cx="430" cy="248" r="13" fill="none" stroke="#BFB4A1" stroke-width="3"/>
+ <text x="120" y="316" font-size="15" fill="#2176AB" text-anchor="middle">人</text><text x="243" y="316" font-size="15" fill="#9C6353" text-anchor="middle">紙風船</text><text x="430" y="316" font-size="15" fill="#8C691E" text-anchor="middle">ターゲット</text><text x="570" y="316" font-size="15" fill="#637186" text-anchor="middle">ロボット</text><rect x="245" y="104" width="113" height="28" rx="14" fill="#D9EDEB"/><text x="301" y="124" font-size="16" fill="#306E68" text-anchor="middle">♪ 構えて</text><path d="M24 345 H704" stroke="#E2E8F0"/><text x="26" y="371" font-size="16" fill="#698095" font-weight="700">行動</text><text x="78" y="371" font-size="18" fill="#25354A" >剣を見て、合わせる準備をする</text><text x="26" y="403" font-size="16" fill="#698095" font-weight="700">合図</text><text x="78" y="403" font-size="18" fill="#25354A" >「構えて」→「剣で受けて！」</text><text x="26" y="435" font-size="16" fill="#698095" font-weight="700">進行</text><text x="78" y="435" font-size="18" fill="#25354A" >動作・認識の状態に合わせて進行</text></g>
+<g transform="translate(40 642)"><rect width="728" height="460" rx="18" fill="#FFFFFF" stroke="#DCE3EC"/>
+ <rect x="22" y="20" width="40" height="36" rx="9" fill="#173B55"/><text x="42" y="45" font-size="21" fill="#FFFFFF" text-anchor="middle" font-weight="700">03</text>
+ <text x="78" y="46" font-size="26" fill="#173B55" font-weight="700">剣で受けた！</text><text x="24" y="78" font-size="18" fill="#52637A" >自分が受けた、その瞬間に反応が返る。</text>
+ <rect x="20" y="96" width="688" height="236" rx="12" fill="#F5F8FC"/>
+ <path d="M50 290 H660" stroke="#CFD8E4" stroke-width="2"/>
+ <rect x="374" y="103" width="236" height="35" rx="6" fill="#E5EBF3"/><text x="492" y="127" font-size="18" fill="#35485F" text-anchor="middle" font-weight="600">受けた！</text>
+ <circle cx="120" cy="150" r="17" fill="#DDEEF8" stroke="#2176AB" stroke-width="4"/>
+ <path d="M120 169 V224 M120 224 L97 287 M120 224 L145 287 M120 182 L94 209" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M120 181 L170 199 L212 225" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M212 225 L363 149" fill="none" stroke="#2176AB" stroke-width="12" stroke-linecap="round"/>
+ <rect x="539" y="271" width="65" height="18" rx="4" fill="#A0ADBE"/>
+ <path d="M570 267 L570 236 L528 207 L488 163" fill="none" stroke="#75849A" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+ <g fill="#CED6E2" stroke="#75849A" stroke-width="3"><circle cx="570" cy="236" r="13"/><circle cx="528" cy="207" r="12"/><circle cx="488" cy="163" r="10"/></g>
+ <path d="M488 163 L284 173" fill="none" stroke="#75849A" stroke-width="12" stroke-linecap="round"/>
+ <path d="M243 264 V289 M226 289 H260" fill="none" stroke="#C3A59E" stroke-width="4"/>
+ <circle cx="243" cy="247" r="18" fill="#F9E2DA" stroke="#C97C66" stroke-width="2"/>
+ <path d="M243 229 C232 239 232 255 243 265 M243 229 C254 239 254 255 243 265" stroke="#D99F8D" stroke-width="1.5" fill="none"/>
+ <path d="M430 270 V289 M409 289 H451" fill="none" stroke="#B6A27B" stroke-width="5"/><circle cx="430" cy="248" r="25" fill="#E9E1D2" stroke="#A2947C" stroke-width="3"/>
+ <circle cx="430" cy="248" r="13" fill="none" stroke="#BFB4A1" stroke-width="3"/>
+ <text x="120" y="316" font-size="15" fill="#2176AB" text-anchor="middle">人</text><text x="243" y="316" font-size="15" fill="#9C6353" text-anchor="middle">紙風船</text><text x="430" y="316" font-size="15" fill="#8C691E" text-anchor="middle">ターゲット</text><text x="570" y="316" font-size="15" fill="#637186" text-anchor="middle">ロボット</text><path d="M298 167 l16 -5 -3 -17 12 13 13 -13 -3 17 16 5 -16 5 3 17 -13 -13 -12 13 3 -17 Z" fill="#F7C85C" stroke="#B67515" stroke-width="2"/><path d="M24 345 H704" stroke="#E2E8F0"/><text x="26" y="371" font-size="16" fill="#698095" font-weight="700">行動</text><text x="78" y="371" font-size="18" fill="#25354A" >剣を合わせ、成功を感じる</text><text x="26" y="403" font-size="16" fill="#698095" font-weight="700">合図</text><text x="78" y="403" font-size="18" fill="#25354A" >成立判定に応じた剣戟音</text><text x="26" y="435" font-size="16" fill="#698095" font-weight="700">進行</text><text x="78" y="435" font-size="18" fill="#25354A" >1回の打ち合いにつき成功は最大1回</text></g>
+<g transform="translate(792 642)"><rect width="728" height="460" rx="18" fill="#FFFFFF" stroke="#DCE3EC"/>
+ <rect x="22" y="20" width="40" height="36" rx="9" fill="#173B55"/><text x="42" y="45" font-size="21" fill="#FFFFFF" text-anchor="middle" font-weight="700">04</text>
+ <text x="78" y="46" font-size="26" fill="#173B55" font-weight="700">短い打ち合いをつなぐ</text><text x="24" y="78" font-size="18" fill="#52637A" >打ち合いを区切り、受けた回数を攻撃へつなぐ。</text>
+ <rect x="20" y="96" width="688" height="236" rx="12" fill="#F5F8FC"/>
+ <path d="M50 290 H660" stroke="#CFD8E4" stroke-width="2"/>
+ <rect x="374" y="103" width="236" height="35" rx="6" fill="#E5EBF3"/><text x="492" y="127" font-size="18" fill="#35485F" text-anchor="middle" font-weight="600">○ × ○ → 2回成功</text>
+ <circle cx="120" cy="150" r="17" fill="#DDEEF8" stroke="#2176AB" stroke-width="4"/>
+ <path d="M120 169 V224 M120 224 L97 287 M120 224 L145 287 M120 182 L94 209" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M120 181 L170 199 L212 225" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M212 225 L363 149" fill="none" stroke="#2176AB" stroke-width="12" stroke-linecap="round"/>
+ <rect x="539" y="271" width="65" height="18" rx="4" fill="#A0ADBE"/>
+ <path d="M570 267 L570 236 L528 207 L488 163" fill="none" stroke="#75849A" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+ <g fill="#CED6E2" stroke="#75849A" stroke-width="3"><circle cx="570" cy="236" r="13"/><circle cx="528" cy="207" r="12"/><circle cx="488" cy="163" r="10"/></g>
+ <path d="M488 163 L284 173" fill="none" stroke="#75849A" stroke-width="12" stroke-linecap="round"/>
+ <path d="M243 264 V289 M226 289 H260" fill="none" stroke="#C3A59E" stroke-width="4"/>
+ <circle cx="243" cy="247" r="18" fill="#F9E2DA" stroke="#C97C66" stroke-width="2"/>
+ <path d="M243 229 C232 239 232 255 243 265 M243 229 C254 239 254 255 243 265" stroke="#D99F8D" stroke-width="1.5" fill="none"/>
+ <path d="M430 270 V289 M409 289 H451" fill="none" stroke="#B6A27B" stroke-width="5"/><circle cx="430" cy="248" r="25" fill="#E9E1D2" stroke="#A2947C" stroke-width="3"/>
+ <circle cx="430" cy="248" r="13" fill="none" stroke="#BFB4A1" stroke-width="3"/>
+ <text x="120" y="316" font-size="15" fill="#2176AB" text-anchor="middle">人</text><text x="243" y="316" font-size="15" fill="#9C6353" text-anchor="middle">紙風船</text><text x="430" y="316" font-size="15" fill="#8C691E" text-anchor="middle">ターゲット</text><text x="570" y="316" font-size="15" fill="#637186" text-anchor="middle">ロボット</text><path d="M298 167 l16 -5 -3 -17 12 13 13 -13 -3 17 16 5 -16 5 3 17 -13 -13 -12 13 3 -17 Z" fill="#F7C85C" stroke="#B67515" stroke-width="2"/><path d="M24 345 H704" stroke="#E2E8F0"/><text x="26" y="371" font-size="16" fill="#698095" font-weight="700">行動</text><text x="78" y="371" font-size="18" fill="#25354A" >例：3回中2回、相手の剣を受けた</text><text x="26" y="403" font-size="16" fill="#698095" font-weight="700">合図</text><text x="78" y="403" font-size="18" fill="#25354A" >受けた回に音で反応／結果は2回成功</text><text x="26" y="435" font-size="16" fill="#698095" font-weight="700">進行</text><text x="78" y="435" font-size="18" fill="#25354A" >成功あり＋動作側の準備 → 05／全失敗 → 07</text></g>
+<g transform="translate(40 1126)"><rect width="728" height="460" rx="18" fill="#FFFFFF" stroke="#DCE3EC"/>
+ <rect x="22" y="20" width="40" height="36" rx="9" fill="#173B55"/><text x="42" y="45" font-size="21" fill="#FFFFFF" text-anchor="middle" font-weight="700">05</text>
+ <text x="78" y="46" font-size="26" fill="#173B55" font-weight="700">隙ができる</text><text x="24" y="78" font-size="18" fill="#52637A" >光った場所が、次に狙う場所。</text>
+ <rect x="20" y="96" width="688" height="236" rx="12" fill="#F5F8FC"/>
+ <path d="M50 290 H660" stroke="#CFD8E4" stroke-width="2"/>
+ <rect x="374" y="103" width="236" height="35" rx="6" fill="#E5EBF3"/><text x="492" y="127" font-size="18" fill="#35485F" text-anchor="middle" font-weight="600">光ったところを叩いて！</text>
+ <circle cx="120" cy="150" r="17" fill="#DDEEF8" stroke="#2176AB" stroke-width="4"/>
+ <path d="M120 169 V224 M120 224 L97 287 M120 224 L145 287 M120 182 L94 209" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M120 181 L155 196 L178 183" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M178 183 L231 122" fill="none" stroke="#2176AB" stroke-width="12" stroke-linecap="round"/>
+ <rect x="539" y="271" width="65" height="18" rx="4" fill="#A0ADBE"/>
+ <path d="M570 267 L570 236 L528 207 L488 163" fill="none" stroke="#75849A" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+ <g fill="#CED6E2" stroke="#75849A" stroke-width="3"><circle cx="570" cy="236" r="13"/><circle cx="528" cy="207" r="12"/><circle cx="488" cy="163" r="10"/></g>
+ <path d="M488 163 L388 185" fill="none" stroke="#75849A" stroke-width="12" stroke-linecap="round"/>
+ <path d="M243 264 V289 M226 289 H260" fill="none" stroke="#C3A59E" stroke-width="4"/>
+ <circle cx="243" cy="247" r="18" fill="#F9E2DA" stroke="#C97C66" stroke-width="2"/>
+ <path d="M243 229 C232 239 232 255 243 265 M243 229 C254 239 254 255 243 265" stroke="#D99F8D" stroke-width="1.5" fill="none"/>
+ <path d="M430 270 V289 M409 289 H451" fill="none" stroke="#B6A27B" stroke-width="5"/><circle cx="430" cy="248" r="37" fill="#FCE29A" opacity=".65"/><circle cx="430" cy="248" r="25" fill="#F7C85C" stroke="#B77918" stroke-width="3"/>
+ <circle cx="430" cy="248" r="13" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+ <text x="120" y="316" font-size="15" fill="#2176AB" text-anchor="middle">人</text><text x="243" y="316" font-size="15" fill="#9C6353" text-anchor="middle">紙風船</text><text x="430" y="316" font-size="15" fill="#8C691E" text-anchor="middle">ターゲット</text><text x="570" y="316" font-size="15" fill="#637186" text-anchor="middle">ロボット</text><path d="M143 151 L390 234" fill="none" stroke="#2176AB" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#gaze)"/><text x="286" y="188" font-size="22" fill="#A56911" font-weight="700">叩いて！</text><path d="M24 345 H704" stroke="#E2E8F0"/><text x="26" y="371" font-size="16" fill="#698095" font-weight="700">行動</text><text x="78" y="371" font-size="18" fill="#25354A" >光ったターゲットへ注意を向ける</text><text x="26" y="403" font-size="16" fill="#698095" font-weight="700">合図</text><text x="78" y="403" font-size="18" fill="#25354A" >「光ったところを叩いて！」＋点灯</text><text x="26" y="435" font-size="16" fill="#698095" font-weight="700">進行</text><text x="78" y="435" font-size="18" fill="#25354A" >有効なターゲット命中 → 06</text></g>
+<g transform="translate(792 1126)"><rect width="728" height="460" rx="18" fill="#FFFFFF" stroke="#DCE3EC"/>
+ <rect x="22" y="20" width="40" height="36" rx="9" fill="#173B55"/><text x="42" y="45" font-size="21" fill="#FFFFFF" text-anchor="middle" font-weight="700">06</text>
+ <text x="78" y="46" font-size="26" fill="#173B55" font-weight="700">一撃を決める</text><text x="24" y="78" font-size="18" fill="#52637A" >成功数に応じて、ロボットのHPが減る。</text>
+ <rect x="20" y="96" width="688" height="236" rx="12" fill="#F5F8FC"/>
+ <path d="M50 290 H660" stroke="#CFD8E4" stroke-width="2"/>
+ <rect x="374" y="103" width="236" height="35" rx="6" fill="#E5EBF3"/><text x="492" y="127" font-size="18" fill="#35485F" text-anchor="middle" font-weight="600">2ダメージ！（例）</text>
+ <circle cx="174" cy="150" r="17" fill="#DDEEF8" stroke="#2176AB" stroke-width="4"/>
+ <path d="M174 169 V224 M174 224 L151 287 M174 224 L199 287 M174 182 L148 209" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M174 181 L214 197 L257 206" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M257 206 L429 248" fill="none" stroke="#2176AB" stroke-width="12" stroke-linecap="round"/>
+ <rect x="539" y="271" width="65" height="18" rx="4" fill="#A0ADBE"/>
+ <path d="M570 267 L570 236 L528 207 L488 163" fill="none" stroke="#75849A" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+ <g fill="#CED6E2" stroke="#75849A" stroke-width="3"><circle cx="570" cy="236" r="13"/><circle cx="528" cy="207" r="12"/><circle cx="488" cy="163" r="10"/></g>
+ <path d="M488 163 L388 185" fill="none" stroke="#75849A" stroke-width="12" stroke-linecap="round"/>
+ <path d="M243 264 V289 M226 289 H260" fill="none" stroke="#C3A59E" stroke-width="4"/>
+ <circle cx="243" cy="247" r="18" fill="#F9E2DA" stroke="#C97C66" stroke-width="2"/>
+ <path d="M243 229 C232 239 232 255 243 265 M243 229 C254 239 254 255 243 265" stroke="#D99F8D" stroke-width="1.5" fill="none"/>
+ <path d="M430 270 V289 M409 289 H451" fill="none" stroke="#B6A27B" stroke-width="5"/><circle cx="430" cy="248" r="37" fill="#FCE29A" opacity=".65"/><circle cx="430" cy="248" r="25" fill="#F7C85C" stroke="#B77918" stroke-width="3"/>
+ <circle cx="430" cy="248" r="13" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+ <text x="174" y="316" font-size="15" fill="#2176AB" text-anchor="middle">人</text><text x="243" y="316" font-size="15" fill="#9C6353" text-anchor="middle">紙風船</text><text x="430" y="316" font-size="15" fill="#8C691E" text-anchor="middle">ターゲット</text><text x="570" y="316" font-size="15" fill="#637186" text-anchor="middle">ロボット</text><path d="M405 248 l16 -5 -3 -17 12 13 13 -13 -3 17 16 5 -16 5 3 17 -13 -13 -12 13 3 -17 Z" fill="#F7C85C" stroke="#B67515" stroke-width="2"/><path d="M24 345 H704" stroke="#E2E8F0"/><text x="26" y="371" font-size="16" fill="#698095" font-weight="700">行動</text><text x="78" y="371" font-size="18" fill="#25354A" >ターゲットを1回叩く</text><text x="26" y="403" font-size="16" fill="#698095" font-weight="700">合図</text><text x="78" y="403" font-size="18" fill="#25354A" >命中音／消灯／画面のHP減少</text><text x="26" y="435" font-size="16" fill="#698095" font-weight="700">進行</text><text x="78" y="435" font-size="18" fill="#25354A" >例：2回成功なら、命中で2ダメージ</text></g>
+<g transform="translate(40 1610)"><rect width="728" height="460" rx="18" fill="#FFFFFF" stroke="#DCE3EC"/>
+ <rect x="22" y="20" width="40" height="36" rx="9" fill="#173B55"/><text x="42" y="45" font-size="21" fill="#FFFFFF" text-anchor="middle" font-weight="700">07</text>
+ <text x="78" y="46" font-size="26" fill="#173B55" font-weight="700">守りに戻る</text><text x="24" y="78" font-size="18" fill="#52637A" >次の応酬へ。紙風船を守る構えに戻る。</text>
+ <rect x="20" y="96" width="688" height="236" rx="12" fill="#F5F8FC"/>
+ <path d="M50 290 H660" stroke="#CFD8E4" stroke-width="2"/>
+ <rect x="374" y="103" width="236" height="35" rx="6" fill="#E5EBF3"/><text x="492" y="127" font-size="18" fill="#35485F" text-anchor="middle" font-weight="600">構えて</text>
+ <circle cx="120" cy="150" r="17" fill="#DDEEF8" stroke="#2176AB" stroke-width="4"/>
+ <path d="M120 169 V224 M120 224 L97 287 M120 224 L145 287 M120 182 L94 209" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M120 181 L155 196 L178 183" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M178 183 L231 122" fill="none" stroke="#2176AB" stroke-width="12" stroke-linecap="round"/>
+ <rect x="539" y="271" width="65" height="18" rx="4" fill="#A0ADBE"/>
+ <path d="M570 267 L570 236 L528 207 L488 163" fill="none" stroke="#75849A" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+ <g fill="#CED6E2" stroke="#75849A" stroke-width="3"><circle cx="570" cy="236" r="13"/><circle cx="528" cy="207" r="12"/><circle cx="488" cy="163" r="10"/></g>
+ <path d="M488 163 L388 185" fill="none" stroke="#75849A" stroke-width="12" stroke-linecap="round"/>
+ <path d="M243 264 V289 M226 289 H260" fill="none" stroke="#C3A59E" stroke-width="4"/>
+ <circle cx="243" cy="247" r="18" fill="#F9E2DA" stroke="#C97C66" stroke-width="2"/>
+ <path d="M243 229 C232 239 232 255 243 265 M243 229 C254 239 254 255 243 265" stroke="#D99F8D" stroke-width="1.5" fill="none"/>
+ <path d="M430 270 V289 M409 289 H451" fill="none" stroke="#B6A27B" stroke-width="5"/><circle cx="430" cy="248" r="25" fill="#E9E1D2" stroke="#A2947C" stroke-width="3"/>
+ <circle cx="430" cy="248" r="13" fill="none" stroke="#BFB4A1" stroke-width="3"/>
+ <text x="120" y="316" font-size="15" fill="#2176AB" text-anchor="middle">人</text><text x="243" y="316" font-size="15" fill="#9C6353" text-anchor="middle">紙風船</text><text x="430" y="316" font-size="15" fill="#8C691E" text-anchor="middle">ターゲット</text><text x="570" y="316" font-size="15" fill="#637186" text-anchor="middle">ロボット</text><rect x="245" y="104" width="113" height="28" rx="14" fill="#D9EDEB"/><text x="301" y="124" font-size="16" fill="#306E68" text-anchor="middle">♪ 構えて</text><path d="M24 345 H704" stroke="#E2E8F0"/><text x="26" y="371" font-size="16" fill="#698095" font-weight="700">行動</text><text x="78" y="371" font-size="18" fill="#25354A" >視線を剣へ戻し、次に備える</text><text x="26" y="403" font-size="16" fill="#698095" font-weight="700">合図</text><text x="78" y="403" font-size="18" fill="#25354A" >ターゲット消灯＋次の予告</text><text x="26" y="435" font-size="16" fill="#698095" font-weight="700">進行</text><text x="78" y="435" font-size="18" fill="#25354A" >ゲーム側・動作側の準備が整ったら02へ</text></g>
+<g transform="translate(792 1610)"><rect width="728" height="460" rx="18" fill="#FFFFFF" stroke="#DCE3EC"/>
+ <rect x="22" y="20" width="40" height="36" rx="9" fill="#173B55"/><text x="42" y="45" font-size="21" fill="#FFFFFF" text-anchor="middle" font-weight="700">08</text>
+ <text x="78" y="46" font-size="26" fill="#173B55" font-weight="700">決着・次の参加者へ</text><text x="24" y="78" font-size="18" fill="#52637A" >剣を交えて、最後の一撃を決めた。</text>
+ <rect x="20" y="96" width="688" height="236" rx="12" fill="#F5F8FC"/>
+ <path d="M50 290 H660" stroke="#CFD8E4" stroke-width="2"/>
+ <rect x="374" y="103" width="236" height="35" rx="6" fill="#E5EBF3"/><text x="492" y="127" font-size="18" fill="#35485F" text-anchor="middle" font-weight="600">勝利！［仮］</text>
+ <circle cx="120" cy="150" r="17" fill="#DDEEF8" stroke="#2176AB" stroke-width="4"/>
+ <path d="M120 169 V224 M120 224 L97 287 M120 224 L145 287 M120 182 L94 209" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M120 181 L155 196 L178 183" fill="none" stroke="#2176AB" stroke-width="7" stroke-linecap="round"/>
+ <path d="M178 183 L231 122" fill="none" stroke="#2176AB" stroke-width="12" stroke-linecap="round"/>
+ <rect x="539" y="271" width="65" height="18" rx="4" fill="#A0ADBE"/>
+ <path d="M570 267 L570 236 L528 207 L488 163" fill="none" stroke="#75849A" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+ <g fill="#CED6E2" stroke="#75849A" stroke-width="3"><circle cx="570" cy="236" r="13"/><circle cx="528" cy="207" r="12"/><circle cx="488" cy="163" r="10"/></g>
+ <path d="M488 163 L388 185" fill="none" stroke="#75849A" stroke-width="12" stroke-linecap="round"/>
+ <path d="M243 264 V289 M226 289 H260" fill="none" stroke="#C3A59E" stroke-width="4"/>
+ <circle cx="243" cy="247" r="18" fill="#F9E2DA" stroke="#C97C66" stroke-width="2"/>
+ <path d="M243 229 C232 239 232 255 243 265 M243 229 C254 239 254 255 243 265" stroke="#D99F8D" stroke-width="1.5" fill="none"/>
+ <path d="M430 270 V289 M409 289 H451" fill="none" stroke="#B6A27B" stroke-width="5"/><circle cx="430" cy="248" r="25" fill="#E9E1D2" stroke="#A2947C" stroke-width="3"/>
+ <circle cx="430" cy="248" r="13" fill="none" stroke="#BFB4A1" stroke-width="3"/>
+ <text x="120" y="316" font-size="15" fill="#2176AB" text-anchor="middle">人</text><text x="243" y="316" font-size="15" fill="#9C6353" text-anchor="middle">紙風船</text><text x="430" y="316" font-size="15" fill="#8C691E" text-anchor="middle">ターゲット</text><text x="570" y="316" font-size="15" fill="#637186" text-anchor="middle">ロボット</text><path d="M312 169 l14 14 27 -31" fill="none" stroke="#488D73" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><text x="333" y="216" font-size="20" fill="#488D73" text-anchor="middle" font-weight="700">決着</text><path d="M24 345 H704" stroke="#E2E8F0"/><text x="26" y="371" font-size="16" fill="#698095" font-weight="700">行動</text><text x="78" y="371" font-size="18" fill="#25354A" >結果を見て、スタッフの案内へ</text><text x="26" y="403" font-size="16" fill="#698095" font-weight="700">合図</text><text x="78" y="403" font-size="18" fill="#25354A" >決着の音＋結果表示</text><text x="26" y="435" font-size="16" fill="#698095" font-weight="700">進行</text><text x="78" y="435" font-size="18" fill="#25354A" >スタッフの再準備で01へ</text></g>
+<text x="42" y="2111" font-size="18" fill="#52637A" >模式図：認識と自動動作の関係・ROS出力・成立条件は未確認。配置・軌道は未決。判定不可は集計を保留します。</text>
+<text x="42" y="2141" font-size="17" fill="#52637A" >青：人と剣　灰：ロボットと剣　桃：紙風船　黄：ターゲット　／　各場面の詳細・分岐は storyboard.md を参照。</text>
+</g></svg>

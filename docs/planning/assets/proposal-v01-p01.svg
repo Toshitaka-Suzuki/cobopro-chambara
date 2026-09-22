@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1131" viewBox="0 0 1600 1131" role="img" aria-labelledby="title desc">
+  <title id="title">ロボットと、チャンバラ。展示企画案</title>
+  <desc id="desc">ロボットとチャンバラできたという体験を中心にした展示企画の概要。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F8FAFC"/><stop offset="1" stop-color="#EAF2F8"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="9" stdDeviation="12" flood-color="#173B55" flood-opacity=".12"/></filter>
+  </defs>
+  <rect width="1600" height="1131" fill="url(#bg)"/>
+  <rect x="0" y="0" width="18" height="1131" fill="#F2B84B"/>
+  <g font-family="'Hiragino Sans','Yu Gothic',Meiryo,sans-serif">
+    <rect x="70" y="58" width="154" height="42" rx="21" fill="#173B55"/>
+    <text x="147" y="86" font-size="20" text-anchor="middle" font-weight="700" fill="#FFFFFF">展示企画案</text>
+    <text x="70" y="177" font-size="72" font-weight="800" fill="#173B55">ロボットと、チャンバラ。</text>
+    <text x="74" y="235" font-size="34" font-weight="700" fill="#D18418">「ロボットとチャンバラできた」を持ち帰る展示。</text>
+
+    <g filter="url(#shadow)">
+      <rect x="70" y="288" width="1460" height="462" rx="30" fill="#FFFFFF"/>
+    </g>
+    <rect x="98" y="316" width="1404" height="50" rx="25" fill="#EEF4F8"/>
+    <text x="800" y="349" font-size="23" text-anchor="middle" font-weight="700" fill="#476076">目の前のロボットと剣を交え、守り、隙をつくり、一撃を決める。</text>
+
+    <!-- player -->
+    <circle cx="430" cy="447" r="35" fill="#E4F3FB" stroke="#1779B0" stroke-width="7"/>
+    <path d="M430 484 V596 M430 520 L358 560 M430 520 L500 548 M430 596 L378 692 M430 596 L488 692" fill="none" stroke="#1779B0" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M500 548 L860 453" fill="none" stroke="#1779B0" stroke-width="24" stroke-linecap="round"/>
+    <text x="430" y="720" font-size="23" text-anchor="middle" font-weight="700" fill="#1779B0">来場者</text>
+
+    <!-- paper balloon -->
+    <circle cx="550" cy="644" r="31" fill="#FBE3DD" stroke="#D77E66" stroke-width="4"/>
+    <path d="M550 613 C532 628 532 658 550 675 M550 613 C568 628 568 658 550 675 M550 676 V700 M529 700 H571" fill="none" stroke="#D77E66" stroke-width="3"/>
+    <text x="550" y="730" font-size="18" text-anchor="middle" fill="#9C5E4E">守る紙風船</text>
+
+    <!-- robot -->
+    <rect x="1152" y="654" width="118" height="30" rx="8" fill="#9AA8BA"/>
+    <path d="M1210 650 L1210 566 L1135 514 L1065 444" fill="none" stroke="#73849A" stroke-width="43" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="#D6DEE8" stroke="#73849A" stroke-width="5"><circle cx="1210" cy="566" r="25"/><circle cx="1135" cy="514" r="24"/><circle cx="1065" cy="444" r="22"/></g>
+    <path d="M1065 444 L780 491" fill="none" stroke="#73849A" stroke-width="24" stroke-linecap="round"/>
+    <text x="1210" y="720" font-size="23" text-anchor="middle" font-weight="700" fill="#637186">COBOTTA PRO</text>
+
+    <!-- clash -->
+    <path d="M796 480 l20 -7 -5 -21 17 15 17 -15 -5 21 21 7 -21 7 5 21 -17 -15 -17 15 5 -21 Z" fill="#F7C85C" stroke="#B56F0D" stroke-width="4"/>
+    <text x="800" y="625" font-size="44" text-anchor="middle" font-weight="800" fill="#173B55">剣を交える手応え</text>
+    <text x="845" y="671" font-size="21" text-anchor="middle" fill="#52637A">合図に合わせて、自分の剣で受ける。</text>
+
+    <g transform="translate(70 790)">
+      <g><rect width="455" height="162" rx="22" fill="#FFFFFF" stroke="#D6E1EA" stroke-width="2"/><circle cx="56" cy="55" r="27" fill="#DCEEF8"/><text x="56" y="65" font-size="29" text-anchor="middle" font-weight="800" fill="#1779B0">1</text><text x="102" y="58" font-size="27" font-weight="800" fill="#173B55">対戦相手がいる</text><text x="30" y="111" font-size="20" fill="#52637A">ロボットと向き合い、自分で剣を合わせる。</text></g>
+      <g transform="translate(502 0)"><rect width="455" height="162" rx="22" fill="#FFFFFF" stroke="#D6E1EA" stroke-width="2"/><circle cx="56" cy="55" r="27" fill="#FFF0C9"/><text x="56" y="65" font-size="29" text-anchor="middle" font-weight="800" fill="#B56F0D">2</text><text x="102" y="58" font-size="27" font-weight="800" fill="#173B55">自分の動きで進む</text><text x="30" y="111" font-size="20" fill="#52637A">受けた成果が、攻撃のチャンスになる。</text></g>
+      <g transform="translate(1004 0)"><rect width="455" height="162" rx="22" fill="#FFFFFF" stroke="#D6E1EA" stroke-width="2"/><circle cx="56" cy="55" r="27" fill="#FBE3DD"/><text x="56" y="65" font-size="29" text-anchor="middle" font-weight="800" fill="#C46C55">3</text><text x="102" y="58" font-size="27" font-weight="800" fill="#173B55">守って、決める</text><text x="30" y="111" font-size="20" fill="#52637A">守る緊張感と、一撃を決める達成感。</text></g>
+    </g>
+
+    <rect x="70" y="984" width="1460" height="82" rx="19" fill="#173B55"/>
+    <text x="112" y="1036" font-size="25" font-weight="800" fill="#F7C85C">提案</text>
+    <text x="205" y="1036" font-size="25" font-weight="700" fill="#FFFFFF">「剣を交える手応え」を中心に、この体験の試作を進めたい。</text>
+    <text x="1530" y="1102" font-size="17" text-anchor="end" fill="#718096">2026-09-22  /  原案反映版 / 01</text>
+  </g>
+</svg>
