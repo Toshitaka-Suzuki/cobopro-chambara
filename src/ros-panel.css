@@ -1,0 +1,65 @@
+.ros-panel { display: grid; gap: 24px; min-width: 0; }
+.ros-card { min-width: 0; padding: 24px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
+.ros-card-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.ros-card-heading h2 { margin: 0; font-size: 17px; line-height: 1.5; }
+.ros-status { display: inline-flex; align-items: center; gap: 8px; color: var(--color-muted); font-size: 12px; }
+.ros-status::before { content: ''; width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: currentColor; }
+.ros-status.is-connected { color: var(--color-success); }
+.ros-connect-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.ros-field { display: grid; gap: 8px; min-width: 0; }
+.ros-field > label, .ros-field > .ros-label { font-size: 12px; color: var(--color-muted); }
+.ros-url-field { flex: 1 1 260px; }
+.ros-panel input:not([type='checkbox']), .ros-panel select, .ros-panel textarea { min-width: 0; width: 100%; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-background); color: var(--color-text); font: inherit; }
+.ros-panel input:not([type='checkbox']), .ros-panel select { min-height: 44px; padding: 10px 12px; font-size: 13px; }
+.ros-panel input:disabled, .ros-panel select:disabled, .ros-panel textarea:disabled { color: var(--color-muted); }
+.ros-panel input:focus-visible, .ros-panel select:focus-visible, .ros-panel textarea:focus-visible, .ros-panel summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.ros-note { margin: 12px 0 0; color: var(--color-muted); font-size: 12px; line-height: 1.9; overflow-wrap: anywhere; }
+.ros-note code, .ros-type, .ros-selected-name { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.ros-alert { margin: 14px 0 0; padding: 12px 14px; border: 1px solid #805048; border-radius: 7px; background: #271b1a; color: #ffb4a5; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.ros-validation { margin: 8px 0 0; color: #ffb4a5; font-size: 12px; line-height: 1.7; }
+.ros-graph-heading { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.ros-graph-heading h2 { margin: 0; font-size: 17px; }
+.ros-graph-heading .ros-note { margin: 6px 0 0; }
+.ros-explorers { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.ros-count { font-size: 12px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.ros-search { margin-bottom: 12px; }
+.ros-list { margin-top: 10px; }
+.ros-panel .ros-list select { height: 152px; min-height: 152px; padding: 5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.ros-list option { padding: 7px 8px; border-radius: 3px; overflow: hidden; text-overflow: ellipsis; }
+.ros-empty { margin: 12px 0 0; color: var(--color-muted); font-size: 13px; line-height: 1.8; }
+.ros-selection { margin: 18px 0 0; padding-top: 18px; border-top: 1px solid var(--color-border); }
+.ros-selected-name { margin: 0; font-size: 13px; font-weight: 700; line-height: 1.7; overflow-wrap: anywhere; }
+.ros-type { display: block; margin-top: 6px; color: var(--color-muted); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.ros-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.ros-actions .serial-button { padding-right: 12px; padding-left: 12px; }
+.ros-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 12px; color: var(--color-muted); }
+.ros-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--color-accent); }
+.ros-receive-stats { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 16px 0; }
+.ros-receive-stats > div { display: flex; align-items: baseline; gap: 8px; }
+.ros-receive-stats dt { color: var(--color-muted); font-size: 12px; }
+.ros-receive-stats dd { margin: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ros-panel .ros-json { display: block; min-height: 170px; resize: vertical; padding: 12px; color: #c6ead5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.8; tab-size: 2; }
+.ros-panel .ros-json::placeholder { color: #8d929e; }
+.ros-history-field { margin-bottom: 12px; }
+.ros-schema { margin-top: 14px; color: var(--color-muted); font-size: 12px; }
+.ros-schema summary { cursor: pointer; line-height: 1.9; }
+.ros-schema pre { max-height: 240px; padding: 12px; overflow: auto; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-background); color: var(--color-text); font-size: 11px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ros-request-field { margin-top: 16px; }
+.ros-result { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--color-border); }
+.ros-result h3 { margin: 0 0 8px; font-size: 14px; }
+.ros-result-status { margin: 0; color: var(--color-muted); font-size: 12px; line-height: 1.8; }
+.ros-result-status.is-response { color: var(--color-success); }
+.ros-result .ros-selected-name { margin-top: 8px; font-size: 12px; }
+.ros-result .ros-field { margin-top: 12px; }
+.ros-result .ros-json { min-height: 120px; }
+.ros-footer { border-top: 1px solid var(--color-border); padding-top: 4px; }
+@media (max-width: 820px) {
+  .ros-explorers { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .ros-panel { gap: 20px; }
+  .ros-card { padding: 18px; }
+  .ros-explorers { gap: 20px; }
+  .ros-connect-form > .serial-button { flex: 1; }
+  .ros-panel input:not([type='checkbox']), .ros-panel .ros-json { font-size: 16px; }
+}

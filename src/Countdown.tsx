@@ -6,9 +6,10 @@ type CountdownProps = {
   headingRef: Ref<HTMLHeadingElement>;
   onComplete: () => void;
   audio: GameAudio;
+  inputMode: 'mock' | 'sensor';
 };
 
-export function Countdown({ headingRef, onComplete, audio }: CountdownProps) {
+export function Countdown({ headingRef, onComplete, audio, inputMode }: CountdownProps) {
   const [remaining, setRemaining] = useState(3);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function Countdown({ headingRef, onComplete, audio }: CountdownProps) {
         <a className="back-link" href="#/play"><span aria-hidden="true">←</span> プレイの準備に戻る</a>
       </nav>
       <div className="countdown-content">
+        <p className="input-mode-label">{inputMode === 'sensor' ? 'センサ接続（実機）' : 'ゲームテスト（モック）'}</p>
         <p className="setup-kicker">まもなく開始</p>
         <h1 ref={headingRef} tabIndex={-1}>剣を構えて</h1>
         <div className={isGo ? 'countdown-counter is-go' : 'countdown-counter'} role="status" aria-live="polite" aria-atomic="true">

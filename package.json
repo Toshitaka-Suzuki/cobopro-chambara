@@ -7,12 +7,21 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --experimental-strip-types --test src/game.test.ts"
+    "test": "node --experimental-strip-types --test src/*.test.ts"
   },
-  "engines": { "node": ">=22.18.0" },
-  "dependencies": { "react": "19.3.0", "react-dom": "19.3.0" },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "roslib": "2.1.0"
+  },
   "devDependencies": {
-    "@types/react": "19.3.0", "@types/react-dom": "19.3.0",
-    "@vitejs/plugin-react": "6.1.1", "typescript": "7.0.2", "vite": "8.3.0"
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.0"
   }
 }

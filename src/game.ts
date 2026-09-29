@@ -7,7 +7,7 @@ export type Game = {
 };
 export type Action =
   | { type: 'start' | 'reset' | 'cue' | 'miss' | 'unknown' | 'balloon' | 'pause' | 'resume' | 'retry' | 'expire' }
-  | { type: 'success'; target?: Target }
+  | { type: 'success' | 'swordClash' | 'contact'; target?: Target }
   | { type: 'open'; target: Target }
   | { type: 'hit'; target: Target }
   | { type: 'tick'; elapsed: number };
@@ -31,6 +31,9 @@ const missed = (game: Game): Game => ({
   ...game, ...clearTarget, phase: 'miss', phaseRemainingMs: 900,
   notice: '攻撃チャンス終了。次の一撃にそなえよう。',
 });
+const prepareNext = (game: Game): Game => ({
+  ...game, ...clearTarget, phase: 'ready', phaseRemainingMs: 1500, notice: '',
+});
 
 function advance(game: Game, elapsed: number): Game {
   if (!active(game) || !Number.isFinite(elapsed) || elapsed <= 0) return game;
@@ -46,14 +49,16 @@ function advance(game: Game, elapsed: number): Game {
       rest -= spent;
       if (next.remainingMs === 0) next = missed(next);
       else break;
-    } else if (['success', 'damage', 'miss'].includes(next.phase)) {
+    } else if (['success', 'damage', 'miss', 'ready'].includes(next.phase)) {
       const spent = Math.min(rest, next.phaseRemainingMs);
       next = { ...next, phaseRemainingMs: next.phaseRemainingMs - spent };
       rest -= spent;
       if (next.phaseRemainingMs > 0) break;
       next = next.phase === 'success'
         ? openTarget(next, next.pendingTarget ?? 1)
-        : { ...next, ...clearTarget, phase: 'ready', notice: '' };
+        : next.phase === 'ready'
+          ? { ...next, ...clearTarget, phase: 'defend', notice: '' }
+          : prepareNext(next);
     } else break;
   }
   return next;
@@ -64,26 +69,34 @@ export function transition(game: Game, action: Action): Game {
   if (action.type === 'pause') return active(game) ? { ...game, paused: true } : game;
   if (action.type === 'resume') return active(game) ? { ...game, paused: false } : game;
   if (game.paused) return game;
-  if (action.type === 'start') return ['idle', 'win', 'lose', 'timeup'].includes(game.phase) ? { ...initialGame, phase: 'ready' } : game;
+  if (action.type === 'start') return ['idle', 'win', 'lose', 'timeup'].includes(game.phase) ? { ...initialGame, phase: 'defend' } : game;
   if (action.type === 'tick') return advance(game, action.elapsed);
   if (action.type === 'balloon') return active(game) ? { ...game, ...clearTarget, phase: 'lose', notice: '' } : game;
-  if (action.type === 'cue' && ['ready', 'damage', 'miss'].includes(game.phase)) return { ...game, ...clearTarget, phase: 'defend', notice: '' };
-  if (action.type === 'retry' && game.phase === 'unknown') return { ...game, ...clearTarget, phase: 'ready', notice: '' };
+  if (action.type === 'cue' && game.phase === 'ready') return { ...game, ...clearTarget, phase: 'defend', notice: '' };
+  if (action.type === 'retry' && game.phase === 'unknown') return prepareNext(game);
   if (game.phase === 'defend') {
-    if (action.type === 'success') return { ...game, ...clearTarget, phase: 'success', pendingTarget: action.target ?? 1, phaseRemainingMs: 900, notice: '' };
+    if (action.type === 'success' || action.type === 'swordClash' || action.type === 'contact') return { ...game, ...clearTarget, phase: 'success', pendingTarget: action.target ?? 1, phaseRemainingMs: 900, notice: '' };
     if (action.type === 'miss') return { ...game, ...clearTarget, phase: 'miss', phaseRemainingMs: 900, notice: '' };
     if (action.type === 'unknown') return { ...game, ...clearTarget, phase: 'unknown', notice: '' };
   }
   if (action.type === 'open' && game.phase === 'success') {
     return openTarget(game, action.target);
   }
-  if (action.type === 'hit' && game.phase === 'attack' && game.remainingMs > 0) {
-    if (action.target !== game.target) return { ...game, notice: '光っている弱点を叩いて！' };
+  if ((action.type === 'hit' || action.type === 'contact') && game.phase === 'attack' && game.remainingMs > 0) {
+    if (action.type === 'hit' && action.target !== game.target) return { ...game, notice: '光っている弱点を叩いて！' };
     const hp = game.hp - 1;
     return { ...game, ...clearTarget, phase: hp === 0 ? 'win' : 'damage', hp, phaseRemainingMs: hp === 0 ? 0 : 900, notice: '' };
   }
   if (action.type === 'expire' && game.phase === 'attack') return missed(game);
   return game;
+}
+
+export function transitionWithElapsed(game: Game, action: Action, elapsed: number): Game {
+  const next = transition(game, { type: 'tick', elapsed });
+  // 入力直前に受付場面が変わった場合、前の場面から届いた接触として捨てる。
+  // タイマー通知前に完成した部分行が、新しい場面で成功するのを防ぐ。
+  if (action.type === 'contact' && next.phase !== game.phase) return next;
+  return transition(next, action);
 }
 
 export function sample(phase: Phase): Game {
@@ -93,7 +106,7 @@ export function sample(phase: Phase): Game {
     target: phase === 'attack' ? 1 : null,
     remainingMs: phase === 'attack' ? 8000 : 0,
     timeLeftMs: phase === 'timeup' ? 0 : 60000,
-    phaseRemainingMs: ['success', 'damage', 'miss'].includes(phase) ? 900 : 0,
+    phaseRemainingMs: phase === 'ready' ? 1500 : ['success', 'damage', 'miss'].includes(phase) ? 900 : 0,
     pendingTarget: phase === 'success' ? 1 : null,
   };
 }

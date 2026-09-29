@@ -128,32 +128,28 @@ h1:focus { outline: none; }
 .setup-heading h1 { margin: 0; font-size: clamp(24px, 3.2vw, 32px); line-height: 1.5; letter-spacing: .02em; }
 .setup-heading > p:last-child { color: var(--color-muted); font-size: 14px; line-height: 1.9; margin: 14px 0 0; }
 
-.recognition-preview {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 28px;
-  padding: 36px 20px 24px;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  background: var(--color-surface);
-}
-
-.preview-demo-label { position: absolute; top: 16px; left: 18px; font-size: 11px; color: var(--color-muted); }
-.sword-guide { width: min(100%, 320px); height: 220px; }
-.guide-corners { stroke: #59606d; }
-.recognition-outline { stroke: #464b57; }
-.sword-blade { stroke: #858c9a; }
-.sword-handle { stroke: #59606d; }
-.recognition-status { display: flex; align-items: center; gap: 10px; color: var(--color-muted); font-size: 16px; font-weight: 700; }
-.recognition-status-icon { display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid #59606d; border-radius: 50%; line-height: 1; }
-.is-recognized { border-color: #4a7c60; background: #141f1a; }
-.is-recognized .guide-corners, .is-recognized .recognition-outline { stroke: var(--color-success); }
-.is-recognized .recognition-outline { stroke-dasharray: none; }
-.is-recognized .sword-blade { stroke: var(--color-success); }
-.is-recognized .recognition-status { color: var(--color-success); }
-.is-recognized .recognition-status-icon { border-color: var(--color-success); }
+/* Input selection stays in preparation; a running round keeps its mode. */
+.setup-navigation { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.input-mode-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-width: 0; border: 0; margin: 30px 0 24px; padding: 0; }
+.input-mode-picker legend { padding: 0; margin-bottom: 12px; color: var(--color-muted); font-size: 13px; }
+.input-mode-choice { display: flex; align-items: flex-start; gap: 10px; padding: 18px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); cursor: pointer; }
+.input-mode-choice.is-selected { border-color: var(--color-accent); background: #261d1b; }
+.input-mode-choice input { margin: 3px 0 0; accent-color: var(--color-accent); flex-shrink: 0; }
+.input-mode-choice:has(input:focus-visible) { outline: 3px solid var(--color-accent); outline-offset: 4px; }
+.input-mode-choice strong { display: block; font-size: 14px; line-height: 1.6; }
+.input-mode-choice small { display: block; color: var(--color-muted); font-size: 12px; line-height: 1.7; margin-top: 6px; }
+.sensor-preparation { display: grid; gap: 16px; }
+.setup-settings-link { display: inline-flex; align-items: center; gap: 12px; margin-top: 16px; color: var(--color-accent); font-size: 13px; text-underline-offset: 4px; }
+.setup-content > .setup-assistance { margin-top: 20px; }
+.setup-input-check { display: flex; align-items: flex-start; gap: 14px; padding: 22px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
+.setup-check-mark { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; border: 1px solid currentColor; border-radius: 50%; color: var(--color-muted); font-size: 14px; }
+.setup-input-check h2 { margin: 2px 0 8px; font-size: 16px; line-height: 1.6; }
+.setup-input-check p { margin: 0; color: var(--color-muted); font-size: 13px; line-height: 1.9; }
+.setup-input-check.is-ready { background: #141f1a; border-color: #4a7c60; }
+.setup-input-check.is-ready .setup-check-mark, .setup-input-check.is-ready h2 { color: var(--color-success); }
+.setup-assistance { margin: 0; color: var(--color-muted); font-size: 12px; line-height: 1.9; }
+.setup-notice { padding: 16px; color: #ffb4a5; border: 1px solid #805048; border-radius: 8px; font-size: 13px; line-height: 1.9; }
+.input-mode-label { margin: 0 0 24px; color: var(--color-muted); font-size: 13px; }
 
 .start-game-area { margin-top: 24px; text-align: center; }
 .start-game-button {
@@ -173,15 +169,6 @@ h1:focus { outline: none; }
 .start-game-button:hover:not(:disabled) { background: #ffa593; }
 .start-game-button:disabled { background: #23262d; border-color: var(--color-border); color: #979ba6; }
 .start-game-area p { color: var(--color-muted); font-size: 13px; line-height: 1.8; margin: 12px 0 0; }
-
-.mock-controls { border-top: 1px dashed var(--color-border); padding-top: 22px; margin-top: 28px; }
-.mock-controls-heading { display: flex; align-items: baseline; gap: 14px; color: var(--color-muted); }
-.mock-controls-heading > span { font-size: 12px; font-weight: 700; flex-shrink: 0; }
-.mock-controls-heading p { margin: 0; font-size: 12px; line-height: 1.8; }
-.mock-controls-actions { display: flex; gap: 10px; margin-top: 12px; }
-.mock-controls-actions button { padding: 10px 16px; border: 1px solid #505560; border-radius: 7px; color: var(--color-text); background: transparent; font-size: 13px; }
-.mock-controls-actions button:hover:not(:disabled) { background: var(--color-surface-hover); }
-.mock-controls-actions button:disabled { color: #757b87; border-color: var(--color-border); }
 
 .countdown-screen { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; }
 .countdown-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px 88px; text-align: center; }
@@ -218,12 +205,9 @@ h1:focus { outline: none; }
   .setup-content { padding: 32px 22px; }
   .setup-heading h1 { font-size: 24px; }
   .setup-heading > p:last-child { font-size: 13px; }
-  .recognition-preview { margin-top: 24px; padding: 34px 16px 20px; }
-  .sword-guide { height: 180px; }
-  .recognition-status { font-size: 15px; }
-  .mock-controls-heading { display: block; }
-  .mock-controls-heading p { margin-top: 5px; }
-  .mock-controls-actions button { flex: 1; padding: 11px 8px; font-size: 12px; }
+  .input-mode-picker { grid-template-columns: 1fr; }
+  .input-mode-choice { padding: 16px; }
+  .setup-input-check { padding: 18px; gap: 12px; }
   .countdown-content { padding: 32px 22px 64px; }
   .countdown-hint { font-size: 14px; }
 }
