@@ -43,4 +43,4 @@ npm run preview
 npm test
 ```
 
-実装は [src/](src/)、企画・検討資料は [docs/planning/](docs/planning/README.md) を参照してください。
+実装は [src/](src/) を参照してください。

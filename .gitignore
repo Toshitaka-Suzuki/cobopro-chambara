@@ -3,3 +3,8 @@ dist/
 tmp/
 output/ui/
 .DS_Store
+
+# Local planning materials
+/docs/planning/
+/output/pdf/robot-chambara-proposal-v01.pdf
+/tools/build_proposal_pdf.swift
