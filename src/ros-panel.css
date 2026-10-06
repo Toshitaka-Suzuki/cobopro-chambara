@@ -7,7 +7,7 @@
 .ros-status.is-connected { color: var(--color-success); }
 .ros-connect-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
 .ros-field { display: grid; gap: 8px; min-width: 0; }
-.ros-field > label, .ros-field > .ros-label { font-size: 12px; color: var(--color-muted); }
+.ros-field > label { font-size: 12px; color: var(--color-muted); }
 .ros-url-field { flex: 1 1 260px; }
 .ros-panel input:not([type='checkbox']), .ros-panel select, .ros-panel textarea { min-width: 0; width: 100%; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-background); color: var(--color-text); font: inherit; }
 .ros-panel input:not([type='checkbox']), .ros-panel select { min-height: 44px; padding: 10px 12px; font-size: 13px; }

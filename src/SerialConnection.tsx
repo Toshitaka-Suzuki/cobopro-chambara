@@ -12,14 +12,16 @@ export type SerialConnectionProps = {
   onCustomBaudRateChange: (value: string) => void;
 };
 
-const baudRates = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+const BAUD_RATES = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+const MAX_BAUD_RATE = 4_000_000;
+const RECENT_RECEPTION_MS = 2_000;
 
 function connectionLabel(snapshot: SerialSnapshot, now: number) {
   if (snapshot.status === 'connecting') return 'ポートの選択・準備中';
   if (snapshot.status === 'disconnecting') return '切断中';
   if (snapshot.status === 'disconnected') return '未接続';
   if (snapshot.lastReceivedAt === null) return 'ポートを開きました・未受信';
-  return now - snapshot.lastReceivedAt < 2000 ? 'ポートを開きました・受信あり' : 'ポートを開きました・2秒以上受信なし';
+  return now - snapshot.lastReceivedAt < RECENT_RECEPTION_MS ? 'ポートを開きました・受信あり' : 'ポートを開きました・2秒以上受信なし';
 }
 
 export function SerialConnection({
@@ -31,14 +33,14 @@ export function SerialConnection({
   const customBaudId = `${id}-custom-baud`;
   const hintId = `${id}-baud-hint`;
   const validationId = `${id}-baud-validation`;
-  const idle = snapshot.status === 'disconnected';
-  const connected = snapshot.status === 'connected';
-  const rate = Number(baudRate === 'custom' ? customBaudRate : baudRate);
-  const validRate = Number.isInteger(rate) && rate > 0 && rate <= 4_000_000;
+  const isDisconnected = snapshot.status === 'disconnected';
+  const isConnected = snapshot.status === 'connected';
+  const selectedBaudRate = Number(baudRate === 'custom' ? customBaudRate : baudRate);
+  const isBaudRateValid = Number.isInteger(selectedBaudRate) && selectedBaudRate > 0 && selectedBaudRate <= MAX_BAUD_RATE;
 
   const connect = () => {
-    if (!validRate || !supported) return;
-    void monitor.connect(rate);
+    if (!isBaudRateValid || !supported) return;
+    void monitor.connect(selectedBaudRate);
     refresh();
   };
 
@@ -51,7 +53,7 @@ export function SerialConnection({
     <section className="serial-connection" aria-label="USBシリアル接続">
       <div className="serial-connection-heading">
         <h2>接続</h2>
-        <span className={`serial-status${connected ? ' is-connected' : ''}`} role="status">
+        <span className={`serial-status${isConnected ? ' is-connected' : ''}`} role="status">
           <span aria-hidden="true" className="serial-status-dot" />
           {connectionLabel(snapshot, now)}
         </span>
@@ -68,9 +70,9 @@ export function SerialConnection({
           <label htmlFor={baudId}>ボーレート（通信速度）</label>
           <div className="serial-baud-input">
             <select id={baudId}
-              value={baudRate} disabled={!idle || !supported} onChange={event => onBaudRateChange(event.target.value)}
+              value={baudRate} disabled={!isDisconnected || !supported} onChange={event => onBaudRateChange(event.target.value)}
               aria-describedby={hintId}>
-              {baudRates.map(value => <option key={value} value={value}>{value}</option>)}
+              {BAUD_RATES.map(value => <option key={value} value={value}>{value}</option>)}
               <option value="custom">カスタム</option>
             </select>
             <span>baud</span>
@@ -79,21 +81,21 @@ export function SerialConnection({
         {baudRate === 'custom' && <div className="serial-baud-field">
           <label htmlFor={customBaudId}>カスタムボーレート</label>
           <div className="serial-baud-input">
-            <input id={customBaudId} type="number" min="1" max="4000000" step="1"
-              value={customBaudRate} disabled={!idle || !supported} onChange={event => onCustomBaudRateChange(event.target.value)}
-              aria-invalid={!validRate} aria-describedby={validRate ? hintId : `${hintId} ${validationId}`} />
+            <input id={customBaudId} type="number" min="1" max={MAX_BAUD_RATE} step="1"
+              value={customBaudRate} disabled={!isDisconnected || !supported} onChange={event => onCustomBaudRateChange(event.target.value)}
+              aria-invalid={!isBaudRateValid} aria-describedby={isBaudRateValid ? hintId : `${hintId} ${validationId}`} />
             <span>baud</span>
           </div>
         </div>}
-        <button className="serial-button serial-connect-button" type="button" disabled={!idle || !supported || !validRate} onClick={connect}>
+        <button className="serial-button serial-connect-button" type="button" disabled={!isDisconnected || !supported || !isBaudRateValid} onClick={connect}>
           {snapshot.status === 'connecting' ? '接続準備中…' : 'USB機器に接続'}
         </button>
-        <button className="serial-button" type="button" disabled={!connected} onClick={disconnect}>
+        <button className="serial-button" type="button" disabled={!isConnected} onClick={disconnect}>
           {snapshot.status === 'disconnecting' ? '切断中…' : '切断'}
         </button>
       </div>
       <p className="serial-hint" id={hintId}>接続先の機器と同じボーレートを選択してください。</p>
-      {!validRate && <p className="serial-validation" id={validationId} role="alert">ボーレートは1〜4,000,000の整数で入力してください。</p>}
+      {!isBaudRateValid && <p className="serial-validation" id={validationId} role="alert">ボーレートは1〜4,000,000の整数で入力してください。</p>}
       {snapshot.error && <p className="serial-message" role="alert">{snapshot.error}</p>}
     </section>
   );

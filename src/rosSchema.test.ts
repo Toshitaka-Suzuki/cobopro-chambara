@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRosRequestTemplate, validateRosRequest } from './rosSchema.ts';
+import { createRosRequestTemplate, MAX_ROS_REQUEST_CHARACTERS, parseRosRequest, validateRosRequest } from './rosSchema.ts';
 
 test('builds editable ROS request JSON with nested messages and fixed / variable arrays', () => {
   const result = createRosRequestTemplate([
@@ -34,4 +34,16 @@ test('only JSON objects can be submitted as ROS request arguments', () => {
   for (const value of ['null', 'true', '4', '"hello"', '[]', '{ broken }', '']) assert.notEqual(validateRosRequest(value), null);
   for (const value of ['{}', '{"data":false}', '{"nested":{"values":[1,2]}}']) assert.equal(validateRosRequest(value), null);
   assert.notEqual(validateRosRequest(JSON.stringify({ text: 'a'.repeat(65536) })), null);
+});
+
+test('request parsing uses the same inclusive size limit as the editor validation', () => {
+  const validText = JSON.stringify({ label: 'a'.repeat(MAX_ROS_REQUEST_CHARACTERS - '{"label":""}'.length) });
+  assert.equal(validText.length, MAX_ROS_REQUEST_CHARACTERS);
+  assert.equal(validateRosRequest(validText), null);
+  assert.deepEqual(parseRosRequest(validText), JSON.parse(validText));
+  for (const invalidText of [validText + ' ', 'null', '[]', '{ broken }']) {
+    const validationError = validateRosRequest(invalidText);
+    assert.notEqual(validationError, null);
+    assert.throws(() => parseRosRequest(invalidText), { message: validationError! });
+  }
 });

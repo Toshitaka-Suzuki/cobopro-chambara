@@ -26,8 +26,8 @@ function asError(value: unknown): Error {
   return new Error(typeof value === 'string' ? value : 'rosbridge に接続できませんでした。URL と接続先を確認してください。');
 }
 
-// The library creates WebSockets asynchronously. This gate also owns transports
-// that arrive after the user has disconnected, and drops all late events.
+// WebSocket の生成は非同期なので、切断要求後に生成された接続も閉じる。
+// 終了済みの接続から遅れて届くイベントは上位へ渡さない。
 class GatedTransport extends AbstractTransport {
   private stopped = false;
   private readonly source: ITransport;
@@ -46,6 +46,7 @@ class GatedTransport extends AbstractTransport {
     this.source.send(message);
   }
 
+  /** イベント転送を止めて接続を閉じる。複数回呼んでも終了処理は一度だけ行う。 */
   close(): void {
     if (this.stopped) return;
     this.stopped = true;
@@ -59,8 +60,8 @@ class GatedTransport extends AbstractTransport {
   isClosed(): boolean { return this.stopped || this.source.isClosed(); }
 }
 
-// Ros normally queues outgoing messages until the next connection. Explorer
-// operations are one-shot: reconnecting must never replay a service invocation.
+// roslib 標準の送信待ちキューを使わず、要求は接続中に一度だけ送信する。
+// 再接続時にサービスが再実行されることを防ぐ。
 class NonQueuingRos extends Ros {
   private readonly active: () => boolean;
 
@@ -69,13 +70,18 @@ class NonQueuingRos extends Ros {
     this.active = active;
   }
 
+  /** 接続中に即時送信する。未接続なら例外にし、再接続後の送信予約を残さない。 */
   override callOnConnection(message: RosbridgeMessage): void {
     if (!this.active() || !this.isConnected) throw disconnectedError();
     super.callOnConnection(message);
   }
 }
 
-/** The factory argument allows protocol tests to use the real Ros/Topic library. */
+/**
+ * roslib の通信を、要求の対応付け・中断・購読解除を備えたアプリ用APIへ変換する。
+ * @param transportFactory WebSocket生成処理。テストでは通信だけを差し替える。
+ * @returns URLと通知先を受け取って接続を開始するファクトリー。自動再接続はしない。
+ */
 export function createRoslibTransportFactory(
   transportFactory: ITransportFactory = WebSocketTransportFactory,
 ): RosTransportFactory {
@@ -84,8 +90,8 @@ export function createRoslibTransportFactory(
     let opened = false;
     let transport: GatedTransport | undefined;
     let requestId = 0;
-    const pending = new Set<(error: Error) => void>();
-    const subscriptions = new Set<() => void>();
+    const pendingRequestFailures = new Set<(error: Error) => void>();
+    const subscriptionStops = new Set<() => void>();
     const ros = new NonQueuingRos(async (endpoint) => {
       if (closed) throw disconnectedError();
       const source = await transportFactory(endpoint);
@@ -99,12 +105,13 @@ export function createRoslibTransportFactory(
 
     const connected = () => !closed && opened && ros.isConnected && transport?.isOpen() === true;
 
+    /** 未完了の要求と購読をすべて終了し、切断またはエラーを一度だけ通知する。 */
     function finish(error: Error, reason: 'close' | 'error'): void {
       if (closed) return;
       closed = true;
       opened = false;
-      for (const reject of [...pending]) reject(error);
-      for (const unsubscribe of [...subscriptions]) unsubscribe();
+      for (const reject of [...pendingRequestFailures]) reject(error);
+      for (const unsubscribe of [...subscriptionStops]) unsubscribe();
       ros.removeAllListeners();
       transport?.close();
       if (reason === 'error') handlers.onError(error);
@@ -119,7 +126,7 @@ export function createRoslibTransportFactory(
     ros.on('close', () => finish(disconnectedError(), 'close'));
     ros.on('error', (error) => finish(asError(error), 'error'));
 
-    // Defer even synchronous factory failures until the caller has its handle.
+    // 同期的な生成失敗も、呼び出し元が切断用ハンドルを受け取った後で通知する。
     void Promise.resolve().then(async () => {
       if (closed) return;
       await ros.connect(url);
@@ -129,6 +136,11 @@ export function createRoslibTransportFactory(
     return {
       close: () => finish(disconnectedError(), 'close'),
 
+      /**
+       * サービスへ一度だけ送信し、要求IDに対応する応答の values を返す。
+       * 中断・切断・期限切れはPromiseを失敗させるが、ROS側の実行取り消しは保証しない。
+       * timeoutMs は正のミリ秒。失敗した要求を次の接続へ再送しない。
+       */
       request(service, args, { signal, timeoutMs }) {
         if (signal.aborted) return Promise.reject(namedError('AbortError', 'リクエストを中断しました。'));
         if (!connected()) return Promise.reject(disconnectedError());
@@ -142,12 +154,13 @@ export function createRoslibTransportFactory(
           let settled = false;
           let timer: ReturnType<typeof setTimeout> | undefined;
 
+          /** 成功・失敗のどちらでも、この要求に属する待機処理をすべて解除する。 */
           function cleanup(): void {
             if (timer !== undefined) clearTimeout(timer);
             ros.off(id, onResponse);
             ros.off(statusId, onStatus);
             signal.removeEventListener('abort', onAbort);
-            pending.delete(fail);
+            pendingRequestFailures.delete(fail);
           }
 
           function fail(error: Error): void {
@@ -161,6 +174,7 @@ export function createRoslibTransportFactory(
             fail(namedError('AbortError', 'リクエストを中断しました。'));
           }
 
+          /** 同じIDの応答でも形式とサービス名を検証し、bridgeが受理した内容だけを返す。 */
           function onResponse(message: RosbridgeMessage): void {
             if (settled) return;
             if (!isRosbridgeServiceResponseMessage(message) || message.service !== service) {
@@ -180,7 +194,7 @@ export function createRoslibTransportFactory(
             }
           }
 
-          pending.add(fail);
+          pendingRequestFailures.add(fail);
           ros.on(id, onResponse);
           ros.on(statusId, onStatus);
           signal.addEventListener('abort', onAbort, { once: true });
@@ -193,6 +207,10 @@ export function createRoslibTransportFactory(
         });
       },
 
+      /**
+       * topicを受信し、何度呼んでも安全な解除関数を返す。失敗は onError へ通知する。
+       * bridgeに100ms間隔・待ち行列1件を指定するため、全メッセージの記録には使わない。
+       */
       subscribe(name, type, onMessage, onError) {
         if (!connected()) {
           onError(disconnectedError());
@@ -211,12 +229,12 @@ export function createRoslibTransportFactory(
           if (stopped) return;
           stopped = true;
           if (statusId) ros.off(statusId, onStatus);
-          subscriptions.delete(stop);
+          subscriptionStops.delete(stop);
           try {
             topic.unsubscribe(receive);
           } catch {
-            // Topic removes its Ros listener before sending unsubscribe. The
-            // connection may already be gone; NonQueuingRos prevents replay.
+            // Topic は unsubscribe 送信前にリスナーを除去する。
+            // 切断済みなら ID も破棄し、購読解除要求を次の接続へ持ち越さない。
             topic.subscribeId = null;
           }
           topic.removeAllListeners();
@@ -228,8 +246,7 @@ export function createRoslibTransportFactory(
           }
         };
 
-        // Register status correlation before sending (also useful with a local
-        // transport that answers synchronously).
+        // 同期応答する通信実装でもエラーを取りこぼさないよう、送信前に ID を登録する。
         topic.callForSubscribeAndAdvertise = (message) => {
           if (message.id) {
             statusId = `status:${message.id}`;
@@ -237,7 +254,7 @@ export function createRoslibTransportFactory(
           }
           ros.callOnConnection(message);
         };
-        subscriptions.add(stop);
+        subscriptionStops.add(stop);
         try {
           topic.subscribe(receive);
         } catch (error) {

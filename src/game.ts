@@ -1,112 +1,179 @@
-export type Phase = 'idle' | 'ready' | 'defend' | 'success' | 'attack' | 'damage' | 'miss' | 'unknown' | 'win' | 'lose' | 'timeup';
-export type Target = 0 | 1 | 2;
-export type Game = {
-  phase: Phase; hp: number; target: Target | null;
-  remainingMs: number; timeLeftMs: number; phaseRemainingMs: number;
-  pendingTarget: Target | null; paused: boolean; notice: string;
+export type GamePhase = 'idle' | 'ready' | 'defend' | 'success' | 'attack' | 'damage' | 'miss' | 'win' | 'lose' | 'timeup';
+export type TargetId = 0 | 1 | 2;
+
+export type GameState = {
+  phase: GamePhase;
+  hp: number;
+  target: TargetId | null;
+  pendingTarget: TargetId | null;
+  attackRemainingMs: number;
+  roundRemainingMs: number;
+  phaseRemainingMs: number;
+  paused: boolean;
+  notice: string;
 };
-export type Action =
-  | { type: 'start' | 'reset' | 'cue' | 'miss' | 'unknown' | 'balloon' | 'pause' | 'resume' | 'retry' | 'expire' }
-  | { type: 'success' | 'swordClash' | 'contact'; target?: Target }
-  | { type: 'open'; target: Target }
-  | { type: 'hit'; target: Target }
-  | { type: 'tick'; elapsed: number };
 
-export const initialGame: Game = {
-  phase: 'idle', hp: 3, target: null, remainingMs: 0,
-  timeLeftMs: 60000, phaseRemainingMs: 0, pendingTarget: null, paused: false, notice: '',
+export type GameAction =
+  | { type: 'start' | 'miss' | 'balloon' | 'pause' | 'resume' }
+  | { type: 'swordClash' | 'contact'; target?: TargetId }
+  | { type: 'hit'; target: TargetId }
+  | { type: 'tick'; elapsedMs: number };
+
+export const MAX_ROBOT_HP = 3;
+export const ROUND_DURATION_MS = 60_000;
+const FEEDBACK_DURATION_MS = 900;
+const READY_DURATION_MS = 1_500;
+const DEFAULT_TARGET: TargetId = 1;
+
+// 画面試作の設定値。ロボットの速度やセンサの認識精度を表す値ではない。
+const ATTACK_WINDOWS_MS = [8_000, 6_000, 4_000] as const;
+export const TARGETS = [
+  { id: 0, name: '赤', color: 'red', position: '左' },
+  { id: 1, name: '青', color: 'blue', position: '中央' },
+  { id: 2, name: '黄', color: 'yellow', position: '右' },
+] as const;
+
+export const INITIAL_GAME_STATE: GameState = {
+  phase: 'idle',
+  hp: MAX_ROBOT_HP,
+  target: null,
+  pendingTarget: null,
+  attackRemainingMs: 0,
+  roundRemainingMs: ROUND_DURATION_MS,
+  phaseRemainingMs: 0,
+  paused: false,
+  notice: '',
 };
-export const targetNames = ['赤', '青', '黄'];
-// 画面と人力試作の仮値。ロボット速度・認識判定の仕様を表しません。
-export const targetWindows = [8000, 6000, 4000];
-export const levelOf = (hp: number) => Math.min(3, Math.max(1, 4 - hp));
-const active = (game: Game) => !['idle', 'win', 'lose', 'timeup'].includes(game.phase);
 
-const clearTarget = { target: null, pendingTarget: null, remainingMs: 0, phaseRemainingMs: 0 };
-const openTarget = (game: Game, target: Target): Game => ({
-  ...game, ...clearTarget, phase: 'attack', target,
-  remainingMs: targetWindows[levelOf(game.hp) - 1], notice: '',
-});
-const missed = (game: Game): Game => ({
-  ...game, ...clearTarget, phase: 'miss', phaseRemainingMs: 900,
-  notice: '攻撃チャンス終了。次の一撃にそなえよう。',
-});
-const prepareNext = (game: Game): Game => ({
-  ...game, ...clearTarget, phase: 'ready', phaseRemainingMs: 1500, notice: '',
-});
+/** 勝利・敗北・時間切れの結果場面かを判定する。開始前の待機は含めない。 */
+export function isGameFinished(phase: GamePhase): boolean {
+  return phase === 'win' || phase === 'lose' || phase === 'timeup';
+}
 
-function advance(game: Game, elapsed: number): Game {
-  if (!active(game) || !Number.isFinite(elapsed) || elapsed <= 0) return game;
-  const timeLeftMs = Math.max(0, game.timeLeftMs - elapsed);
-  if (timeLeftMs === 0) return { ...game, ...clearTarget, phase: 'timeup', timeLeftMs, notice: '' };
-  let next = { ...game, timeLeftMs };
-  let rest = elapsed;
-  // 遅いフレームでも、表示待ちを越えた時間を次の場面へ引き継ぐ。
-  while (rest > 0) {
+function isGameActive(game: GameState): boolean {
+  return game.phase !== 'idle' && !isGameFinished(game.phase);
+}
+
+/** 残り HP に応じた攻撃受付時間をミリ秒で返す。命中するたびに短くなる。 */
+export function getAttackWindowMs(hp: number): number {
+  const damageCount = Math.min(MAX_ROBOT_HP - 1, Math.max(0, MAX_ROBOT_HP - hp));
+  return ATTACK_WINDOWS_MS[damageCount];
+}
+
+const CLEARED_TARGET = { target: null, pendingTarget: null, attackRemainingMs: 0, phaseRemainingMs: 0 };
+
+function openTarget(game: GameState): GameState {
+  return {
+    ...game,
+    ...CLEARED_TARGET,
+    phase: 'attack',
+    target: game.pendingTarget ?? DEFAULT_TARGET,
+    attackRemainingMs: getAttackWindowMs(game.hp),
+    notice: '',
+  };
+}
+
+function missAttack(game: GameState): GameState {
+  return {
+    ...game,
+    ...CLEARED_TARGET,
+    phase: 'miss',
+    phaseRemainingMs: FEEDBACK_DURATION_MS,
+    notice: '攻撃チャンス終了。次の一撃にそなえよう。',
+  };
+}
+
+function prepareNextDefense(game: GameState): GameState {
+  return { ...game, ...CLEARED_TARGET, phase: 'ready', phaseRemainingMs: READY_DURATION_MS, notice: '' };
+}
+
+/** 経過ミリ秒を総時間と場面の待ち時間へ適用する。総時間切れを場面遷移より優先する。 */
+function advanceTime(game: GameState, elapsedMs: number): GameState {
+  if (!isGameActive(game) || !Number.isFinite(elapsedMs) || elapsedMs <= 0) return game;
+
+  const roundRemainingMs = Math.max(0, game.roundRemainingMs - elapsedMs);
+  if (roundRemainingMs === 0) {
+    return { ...game, ...CLEARED_TARGET, phase: 'timeup', roundRemainingMs, notice: '' };
+  }
+
+  let next = { ...game, roundRemainingMs };
+  let unprocessedMs = elapsedMs;
+  // 遅いフレームでも表示待ちを越えた時間を次の場面へ引き継ぎ、制限時間を延ばさない。
+  while (unprocessedMs > 0) {
     if (next.phase === 'attack') {
-      const spent = Math.min(rest, next.remainingMs);
-      next = { ...next, remainingMs: next.remainingMs - spent };
-      rest -= spent;
-      if (next.remainingMs === 0) next = missed(next);
-      else break;
+      const spentMs = Math.min(unprocessedMs, next.attackRemainingMs);
+      next = { ...next, attackRemainingMs: next.attackRemainingMs - spentMs };
+      unprocessedMs -= spentMs;
+      if (next.attackRemainingMs > 0) break;
+      next = missAttack(next);
     } else if (['success', 'damage', 'miss', 'ready'].includes(next.phase)) {
-      const spent = Math.min(rest, next.phaseRemainingMs);
-      next = { ...next, phaseRemainingMs: next.phaseRemainingMs - spent };
-      rest -= spent;
+      const spentMs = Math.min(unprocessedMs, next.phaseRemainingMs);
+      next = { ...next, phaseRemainingMs: next.phaseRemainingMs - spentMs };
+      unprocessedMs -= spentMs;
       if (next.phaseRemainingMs > 0) break;
-      next = next.phase === 'success'
-        ? openTarget(next, next.pendingTarget ?? 1)
-        : next.phase === 'ready'
-          ? { ...next, ...clearTarget, phase: 'defend', notice: '' }
-          : prepareNext(next);
-    } else break;
+
+      if (next.phase === 'success') next = openTarget(next);
+      else if (next.phase === 'ready') next = { ...next, ...CLEARED_TARGET, phase: 'defend', notice: '' };
+      else next = prepareNextDefense(next);
+    } else {
+      break;
+    }
   }
   return next;
 }
 
-export function transition(game: Game, action: Action): Game {
-  if (action.type === 'reset') return { ...initialGame };
-  if (action.type === 'pause') return active(game) ? { ...game, paused: true } : game;
-  if (action.type === 'resume') return active(game) ? { ...game, paused: false } : game;
+/**
+ * センサ・モック共通の入力から次の状態を返す。元の状態は変更せず、受付対象外ならそのまま返す。
+ * 時刻・乱数・入出力には依存しない。tick の経過時間はミリ秒で渡す。
+ */
+export function transitionGame(game: GameState, action: GameAction): GameState {
+  if (action.type === 'pause') return isGameActive(game) ? { ...game, paused: true } : game;
+  if (action.type === 'resume') return isGameActive(game) ? { ...game, paused: false } : game;
   if (game.paused) return game;
-  if (action.type === 'start') return ['idle', 'win', 'lose', 'timeup'].includes(game.phase) ? { ...initialGame, phase: 'defend' } : game;
-  if (action.type === 'tick') return advance(game, action.elapsed);
-  if (action.type === 'balloon') return active(game) ? { ...game, ...clearTarget, phase: 'lose', notice: '' } : game;
-  if (action.type === 'cue' && game.phase === 'ready') return { ...game, ...clearTarget, phase: 'defend', notice: '' };
-  if (action.type === 'retry' && game.phase === 'unknown') return prepareNext(game);
+  if (action.type === 'start') return isGameActive(game) ? game : { ...INITIAL_GAME_STATE, phase: 'defend' };
+  if (action.type === 'tick') return advanceTime(game, action.elapsedMs);
+  if (action.type === 'balloon') {
+    return isGameActive(game) ? { ...game, ...CLEARED_TARGET, phase: 'lose', notice: '' } : game;
+  }
+
   if (game.phase === 'defend') {
-    if (action.type === 'success' || action.type === 'swordClash' || action.type === 'contact') return { ...game, ...clearTarget, phase: 'success', pendingTarget: action.target ?? 1, phaseRemainingMs: 900, notice: '' };
-    if (action.type === 'miss') return { ...game, ...clearTarget, phase: 'miss', phaseRemainingMs: 900, notice: '' };
-    if (action.type === 'unknown') return { ...game, ...clearTarget, phase: 'unknown', notice: '' };
+    if (action.type === 'swordClash' || action.type === 'contact') {
+      return {
+        ...game,
+        ...CLEARED_TARGET,
+        phase: 'success',
+        pendingTarget: action.target ?? DEFAULT_TARGET,
+        phaseRemainingMs: FEEDBACK_DURATION_MS,
+        notice: '',
+      };
+    }
+    if (action.type === 'miss') {
+      return { ...game, ...CLEARED_TARGET, phase: 'miss', phaseRemainingMs: FEEDBACK_DURATION_MS, notice: '' };
+    }
   }
-  if (action.type === 'open' && game.phase === 'success') {
-    return openTarget(game, action.target);
-  }
-  if ((action.type === 'hit' || action.type === 'contact') && game.phase === 'attack' && game.remainingMs > 0) {
+
+  if ((action.type === 'hit' || action.type === 'contact') && game.phase === 'attack' && game.attackRemainingMs > 0) {
+    // 現行センサは接触位置を返さない。色の一致を検証できるのはモックの hit だけ。
     if (action.type === 'hit' && action.target !== game.target) return { ...game, notice: '光っている弱点を叩いて！' };
     const hp = game.hp - 1;
-    return { ...game, ...clearTarget, phase: hp === 0 ? 'win' : 'damage', hp, phaseRemainingMs: hp === 0 ? 0 : 900, notice: '' };
+    return {
+      ...game,
+      ...CLEARED_TARGET,
+      phase: hp === 0 ? 'win' : 'damage',
+      hp,
+      phaseRemainingMs: hp === 0 ? 0 : FEEDBACK_DURATION_MS,
+      notice: '',
+    };
   }
-  if (action.type === 'expire' && game.phase === 'attack') return missed(game);
   return game;
 }
 
-export function transitionWithElapsed(game: Game, action: Action, elapsed: number): Game {
-  const next = transition(game, { type: 'tick', elapsed });
-  // 入力直前に受付場面が変わった場合、前の場面から届いた接触として捨てる。
-  // タイマー通知前に完成した部分行が、新しい場面で成功するのを防ぐ。
+/**
+ * 入力直前の経過ミリ秒を処理してから入力を適用し、受付期限を守った次の状態を返す。
+ * 場面が切り替わった場合は、前の場面から届いた接触を新しい受け・命中として採用しない。
+ */
+export function transitionGameWithElapsed(game: GameState, action: GameAction, elapsedMs: number): GameState {
+  const next = transitionGame(game, { type: 'tick', elapsedMs });
   if (action.type === 'contact' && next.phase !== game.phase) return next;
-  return transition(next, action);
-}
-
-export function sample(phase: Phase): Game {
-  return {
-    ...initialGame, phase,
-    hp: phase === 'win' ? 0 : phase === 'damage' ? 2 : 3,
-    target: phase === 'attack' ? 1 : null,
-    remainingMs: phase === 'attack' ? 8000 : 0,
-    timeLeftMs: phase === 'timeup' ? 0 : 60000,
-    phaseRemainingMs: phase === 'ready' ? 1500 : ['success', 'damage', 'miss'].includes(phase) ? 900 : 0,
-    pendingTarget: phase === 'success' ? 1 : null,
-  };
+  return transitionGame(next, action);
 }

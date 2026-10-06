@@ -1,17 +1,19 @@
 import type { Ref } from 'react';
 import type { SwordSensorSnapshot } from './swordSensor';
+import { INPUT_MODE_LABELS } from './inputMode';
+import type { InputMode } from './inputMode';
 
 type PlaySetupProps = {
   headingRef: Ref<HTMLHeadingElement>;
-  inputMode: 'mock' | 'sensor';
-  onModeChange: (mode: 'mock' | 'sensor') => void;
+  inputMode: InputMode;
+  onModeChange: (mode: InputMode) => void;
   sensorState: SwordSensorSnapshot;
   notice: string;
   onStart: () => void;
 };
 
 export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, notice, onStart }: PlaySetupProps) {
-  const ready = inputMode === 'mock' || sensorState.ready;
+  const canStart = inputMode === 'mock' || sensorState.ready;
   return (
     <main className="setup-screen">
       <nav className="setup-navigation" aria-label="画面移動">
@@ -29,11 +31,11 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
           <legend>入力方法</legend>
           <label className={inputMode === 'mock' ? 'input-mode-choice is-selected' : 'input-mode-choice'}>
             <input type="radio" name="input-mode" value="mock" checked={inputMode === 'mock'} onChange={() => onModeChange('mock')} />
-            <span><strong>ゲームテスト（モック）</strong><small>機器なしで、キーとボタンで操作</small></span>
+            <span><strong>{INPUT_MODE_LABELS.mock}</strong><small>機器なしで、キーとボタンで操作</small></span>
           </label>
           <label className={inputMode === 'sensor' ? 'input-mode-choice is-selected' : 'input-mode-choice'}>
             <input type="radio" name="input-mode" value="sensor" checked={inputMode === 'sensor'} onChange={() => onModeChange('sensor')} />
-            <span><strong>センサ接続（実機）</strong><small>USBの信号で受けと命中を判定</small></span>
+            <span><strong>{INPUT_MODE_LABELS.sensor}</strong><small>USBの信号で受けと命中を判定</small></span>
           </label>
         </fieldset>
 
@@ -62,10 +64,10 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
         )}
 
         <div className="start-game-area">
-          <button className="start-game-button" disabled={!ready} onClick={onStart} aria-describedby="start-game-hint">
+          <button className="start-game-button" disabled={!canStart} onClick={onStart} aria-describedby="start-game-hint">
             ゲーム開始 <span aria-hidden="true">→</span>
           </button>
-          <p id="start-game-hint">{ready ? '3秒のカウントダウン後に始まります。' : '管理画面で接続と入力を確認すると、開始できます。'}</p>
+          <p id="start-game-hint">{canStart ? '3秒のカウントダウン後に始まります。' : '管理画面で接続と入力を確認すると、開始できます。'}</p>
         </div>
         {inputMode === 'sensor' && <p className="setup-assistance">画面移動やモックへの切り替えでも接続を保ちます。USBを抜く・切断する・ページを再読み込みした場合は、再接続が必要です。</p>}
       </div>

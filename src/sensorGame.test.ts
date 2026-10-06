@@ -1,33 +1,23 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { initialGame, transition, transitionWithElapsed } from './game.ts';
-import type { Action } from './game.ts';
+import { INITIAL_GAME_STATE, transitionGame, transitionGameWithElapsed } from './game.ts';
+import type { GameAction } from './game.ts';
 import { SerialMonitor } from './serial.ts';
-import type { SerialPortApi } from './serial.ts';
-import { SwordSensorInput } from './swordSensor.ts';
-
-class FakePort implements SerialPortApi {
-  controller!: ReadableStreamDefaultController<Uint8Array>;
-  readable = new ReadableStream<Uint8Array>({
-    start: controller => { this.controller = controller; },
-  });
-  async open() {}
-  async close() {}
-  send(text: string) { this.controller.enqueue(new TextEncoder().encode(text)); }
-}
+import { SENSOR_QUIET_PERIOD_MS, SwordSensorInput } from './swordSensor.ts';
+import { FakeSerialPort, waitUntil } from './testSupport/serial.ts';
 
 async function setup() {
-  const port = new FakePort();
+  const port = new FakeSerialPort();
   const monitor = new SerialMonitor({ requestPort: async () => port });
-  const sensor = new SwordSensorInput(monitor);
-  let game = transition(initialGame, { type: 'start' });
-  let now = 0;
-  let lastTick = 0;
-  // GameScreenと同じ入力経路。直前の経過時間を処理し、場面変更で古い入力を捨てる。
-  const dispatch = (action: Action, elapsed = 0) => {
-    now += elapsed;
-    const next = transitionWithElapsed(game, action, now - lastTick);
-    lastTick = now;
+  let nowMs = 0;
+  const sensor = new SwordSensorInput(monitor, () => nowMs);
+  let game = transitionGame(INITIAL_GAME_STATE, { type: 'start' });
+  let lastTickMs = 0;
+  // useGameSessionと同じ入力経路。直前の経過時間を処理し、場面変更で古い入力を捨てる。
+  const dispatch = (action: GameAction, elapsedMs = 0) => {
+    nowMs += elapsedMs;
+    const next = transitionGameWithElapsed(game, action, nowMs - lastTickMs);
+    lastTickMs = nowMs;
     if (next.phase !== game.phase || next.paused !== game.paused) sensor.discardPending();
     game = next;
   };
@@ -37,21 +27,53 @@ async function setup() {
     monitor, sensor,
     game: () => game,
     subscribeGame: () => sensor.subscribeClash(() => dispatch({ type: 'contact', target: 1 })),
-    tick: (elapsed: number) => dispatch({ type: 'tick', elapsed: 0 }, elapsed),
-    send: async (text: string, elapsed = 0) => {
+    tick: (elapsedMs: number) => dispatch({ type: 'tick', elapsedMs: 0 }, elapsedMs),
+    send: async (text: string, elapsedMs = 0) => {
       // 時間だけを進め、次の受信がタイマー通知より先に届く場合も再現できる。
-      now += elapsed;
+      nowMs += elapsedMs;
       const expectedBytes = monitor.getSnapshot().bytesReceived + new TextEncoder().encode(text).length;
       port.send(text);
-      for (let attempts = 0; attempts < 100; attempts++) {
-        if (monitor.getSnapshot().bytesReceived === expectedBytes) return;
-        await new Promise<void>(resolve => setImmediate(resolve));
-      }
-      assert.fail('Serial chunk was not consumed');
+      await waitUntil(() => monitor.getSnapshot().bytesReceived === expectedBytes);
     },
     dispose: async () => { sensor.stop(); await monitor.disconnect(); },
   };
 }
+
+test('剣受けの連続信号が攻撃開始を越えても命中にせず、静穏後の新しい接触を受け付ける', async context => {
+  const setupGame = await setup();
+  context.after(setupGame.dispose);
+  context.after(setupGame.subscribeGame());
+  await setupGame.send('1\n');
+  assert.equal(setupGame.game().phase, 'success');
+
+  for (let elapsedMs = 10; elapsedMs <= 1200; elapsedMs += 10) {
+    setupGame.tick(10);
+    await setupGame.send('1\n');
+    assert.equal(setupGame.game().hp, 3, `residual contact at ${elapsedMs} ms must not hit`);
+  }
+  assert.equal(setupGame.game().phase, 'attack');
+  assert.equal(setupGame.game().roundRemainingMs, 58800);
+  assert.equal(setupGame.game().attackRemainingMs, 7700, 'suppressed contacts do not stop the game clock');
+  assert.equal(setupGame.sensor.getSnapshot().clashesReceived, 121);
+  assert.equal(setupGame.sensor.getSnapshot().ready, true);
+
+  setupGame.tick(SENSOR_QUIET_PERIOD_MS - 1);
+  await setupGame.send('1\n');
+  assert.equal(setupGame.game().hp, 3, 'an insufficient quiet interval extends the suppression');
+  setupGame.tick(SENSOR_QUIET_PERIOD_MS);
+  await setupGame.send('1\n');
+  assert.equal(setupGame.game().phase, 'damage');
+  assert.equal(setupGame.game().hp, 2);
+  assert.equal(setupGame.game().roundRemainingMs, 58800 - (SENSOR_QUIET_PERIOD_MS * 2 - 1));
+
+  setupGame.tick(900);
+  assert.equal(setupGame.game().phase, 'ready');
+  setupGame.tick(1500);
+  assert.equal(setupGame.game().phase, 'defend');
+  await setupGame.send('1\n');
+  assert.equal(setupGame.game().phase, 'success', 'the next defense still accepts a new contact');
+  assert.equal(setupGame.game().hp, 2);
+});
 
 test('実際の受信経路で同じチャンクの重複を採用せず、接触だけで3命中して勝利する', async context => {
   const setupGame = await setup();
@@ -91,7 +113,7 @@ test('未完の接触が成功表示の終端で完成しても、そのチャ�
   assert.equal(setupGame.game().phase, 'attack');
   assert.equal(setupGame.game().hp, 3);
   assert.equal(setupGame.sensor.getSnapshot().clashesReceived, 3);
-  await setupGame.send('1\n');
+  await setupGame.send('1\n', SENSOR_QUIET_PERIOD_MS);
   assert.equal(setupGame.game().phase, 'damage');
   assert.equal(setupGame.game().hp, 2);
 });
@@ -108,7 +130,9 @@ test('ゲームの購読を解除しても接続と入力確認は維持し、�
   assert.equal(setupGame.sensor.getSnapshot().ready, true);
   context.after(setupGame.subscribeGame());
   assert.equal(setupGame.game(), before, 'subscribing does not replay the ready-check input');
-  await setupGame.send('1\n');
+  await setupGame.send('1\n', 10);
+  assert.equal(setupGame.game(), before, 'resubscribing does not turn residual contact into a new defense');
+  await setupGame.send('1\n', SENSOR_QUIET_PERIOD_MS);
   assert.equal(setupGame.game().phase, 'success');
   assert.equal(setupGame.game().hp, 3);
 });
