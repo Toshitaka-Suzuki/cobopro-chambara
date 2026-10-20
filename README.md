@@ -8,6 +8,107 @@
 
 実機連携は開発中です。ROSとゲーム進行の連携は未実装です。
 
+## 2つのリポジトリをクローンして動かす
+
+以下は、**同じPCで画面とPythonを動かし、会話は模擬・BGMは実際に再生する**手順です。LLM・マイク・USBセンサ・ロボットは不要です。
+
+### 1. 必要なもの
+
+- Git
+- Node.js 22.18以降（npmを含む）
+- Python 3.11または3.12
+- ブラウザーと、音の出るスピーカーまたはヘッドホン
+
+### 2. 両方を取得する
+
+ターミナル（WindowsではPowerShell）で、作業用フォルダーへ移動して実行します。
+
+```sh
+git clone --branch main https://github.com/Toshitaka-Suzuki/cobopro-chambara.git
+git clone --branch feat/browser-rhythm-guide https://github.com/Toshitaka-Suzuki/voice_recognition_and_bgm_app.git
+```
+
+Python側の連携変更は、現在 **Toshitaka-Suzukiのforkの`feat/browser-rhythm-guide`ブランチ**にあります。このブランチを指定してください。
+
+```text
+作業用フォルダー/
+├─ cobopro-chambara/
+└─ voice_recognition_and_bgm_app/
+```
+
+このPythonブランチには`data/bgm/`の`easy.ogg`・`normal.ogg`・`hard.ogg`も含まれています。BGMを別途用意する必要はありません。
+
+### 3. Python側を準備して起動する（ターミナル1）
+
+上記の作業用フォルダーから、使用するOSのコマンドを実行します。仮想環境のPythonを直接指定するので、有効化操作は不要です。
+
+**Windows / PowerShell**
+
+```powershell
+cd voice_recognition_and_bgm_app
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-integration-test.txt
+$env:PYTHONPATH = "src"
+.\.venv\Scripts\python.exe -m chambara_app --mock-conversation
+```
+
+Python 3.12を入れた場合は、`py -3.11`を`py -3.12`に置き換えます。
+
+**Mac**
+
+```sh
+cd voice_recognition_and_bgm_app
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -r requirements-integration-test.txt
+PYTHONPATH=src .venv/bin/python -m chambara_app --mock-conversation
+```
+
+Python 3.12を入れた場合は、`python3.11`を`python3.12`に置き換えます。
+
+`待ち受け ws://127.0.0.1:8765`と表示されたら、そのターミナルを開いたままにします。BGMはゲームの対戦が始まったときに流れます。
+
+### 4. 画面側を準備して起動する（ターミナル2）
+
+新しいターミナルを開き、手順2の作業用フォルダーへ移動して実行します。Windows / Mac共通です。
+
+```sh
+cd cobopro-chambara
+npm ci
+npm run dev
+```
+
+表示されたURL（通常は <http://127.0.0.1:5173>）をブラウザーで開きます。こちらのターミナルも開いたままにします。
+PowerShellで`npm.ps1`の実行が拒否される場合は、`npm.cmd ci`と`npm.cmd run dev`を使用してください。
+
+### 5. 接続して遊ぶ
+
+1. 「プレイ画面」を開き、遊び方を「会話・BGM連携」にします。
+2. 接続先を`ws://127.0.0.1:8765`にして「接続する」を押します。
+3. 「準備完了」を確認し、入力方法を「ゲームテスト（モック）」にします。
+4. 「ゲーム開始」を押すと、約3秒の模擬会話→カウントダウン→BGM付きの対戦と進みます。
+5. 「タン・タン・タン・カン！」の最後の高い音に合わせてSpaceキー、または画面のSPACEボタンで受けます。成功したら、光る標的をクリックするか対応する1〜3キーで命中させます。
+
+弱点への命中でLEVELが1→2→3へ上がり、BGMも変わります。3回命中すると勝利です。Bキーで紙風船破損による敗北も試せます。終了後の模擬会話が終わると次のゲームを始められます。
+
+### 終了・次回の起動
+
+プレイ中なら画面の「中断する」を押し、両方のターミナルでCtrl+Cを押して終了します。
+次回は手順3・4の依存インストールと仮想環境作成を省き、各リポジトリで起動コマンドだけ実行します。Windowsでは新しいターミナルごとに`$env:PYTHONPATH = "src"`も設定してください。
+
+### うまく動かない場合
+
+| 症状 | 確認すること |
+| --- | --- |
+| `chambara_app`が見つからない | Pythonリポジトリ直下で実行し、上記の`PYTHONPATH`と`.venv`のPythonを使っているか確認します。 |
+| 通信仕様が古い、`--mock-conversation`が認識されない | Python側で`git branch --show-current`を実行し、`feat/browser-rhythm-guide`か確認します。 |
+| 接続できない | Python側に「待ち受け」が出ているか、接続先が`ws://127.0.0.1:8765`か確認します。制御接続は1つだけなので、別タブの接続も確認してください。 |
+| ポート8765が使用中 | 既に起動しているPythonを使うか停止します。別ポートで起動するならPythonの起動コマンドに`--port 8766`を追加し、画面側も8766へ変更します。 |
+| BGMが聞こえない | 対戦開始後か、PCの音量・出力先・Pythonのエラーを確認します。画面の「効果音」はPythonのBGMの音量には作用しません。 |
+| 音声デバイスなしで通信だけ確認したい | Pythonの起動コマンドに`--silent-audio`を追加します。BGMと予告音は鳴りません。 |
+
+実際の音声会話も使う場合はWindowsでLLM・マイク・音声認識・TTSの準備が必要です。
+Python側の[README](https://github.com/Toshitaka-Suzuki/voice_recognition_and_bgm_app/blob/feat/browser-rhythm-guide/README.md)と[統合動作確認ガイド](https://github.com/Toshitaka-Suzuki/voice_recognition_and_bgm_app/blob/feat/browser-rhythm-guide/docs/integration-guide.md)を参照してください。通常の会話は、全依存と設定の準備後に`--mock-conversation`を外して起動します。
+
 ## 起動
 
 Node.js 22.18以降を用意し、プロジェクト直下で実行します。
