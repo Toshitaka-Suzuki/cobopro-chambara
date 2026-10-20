@@ -29,6 +29,23 @@ test('通信遅延・同期の途絶・停止中・終了済みの拍では合�
   assert.equal(projectRhythm(past, 30), null);
 });
 
+test('描画フレームの間に同期が届いても、剣と輪を待機位置へ戻さない', () => {
+  const previous = parseRhythm(message, 100, 140)!;
+  const before = projectRhythm(previous, 332)!;
+  // 直前のRAFは332ms。同期だけが先に340msで届いて再描画される。
+  const next = parseRhythm({ ...message, position_ms: 800 }, 300, 340)!;
+  const betweenFrames = projectRhythm(next, 332);
+  assert.ok(betweenFrames);
+  assert.equal(betweenFrames.position, 820);
+  assert.ok(betweenFrames.progress >= before.progress);
+  assert.equal(betweenFrames.beat, before.beat);
+  assert.equal(projectRhythm(next, 348)?.position, 828);
+
+  const contact = parseRhythm({ ...message, position_ms: 1490 }, 800, 820)!;
+  assert.equal(projectRhythm(contact, 816)?.beat, 4);
+  assert.equal(projectRhythm(contact, 816)?.inWindow, true);
+});
+
 test('次の周回の絶対位置でも輪が重なり、不正な拍や数値は使わない', () => {
   const state = parseRhythm({ ...message, position_ms: 9350, beats_ms: [8000, 8500, 9000, 9500] }, 0, 10)!;
   assert.equal(projectRhythm(state, 155)?.position, 9500);

@@ -1,9 +1,9 @@
-.rhythm-guide { width: min(100%, 650px); position: relative; }
+.rhythm-guide { width: min(100%, 760px); position: relative; }
 .game-instruction .rhythm-guide h1 { font-size: clamp(23px, 2.6vw, 34px); line-height: 1.3; text-shadow: none; animation: none; }
 .rhythm-guide h1 > span { margin-left: 10px; font-size: .7em; color: #aac6d2; letter-spacing: .12em; }
 .rhythm-hint { margin: 8px 0 0; color: #b8c6d0; font-size: 13px; line-height: 1.7; }
 .rhythm-hint > span { margin-left: 10px; color: #839ca8; font-size: 10px; letter-spacing: .08em; }
-.rhythm-arena { position: relative; height: 240px; }
+.rhythm-arena { position: relative; height: 320px; }
 .rhythm-arena > svg { height: 100%; width: 100%; overflow: visible; }
 .rhythm-track { stroke: #3b515d; stroke-width: 1; stroke-dasharray: 2 9; }
 .rhythm-target-ring { stroke: #476a7c; stroke-width: 8; fill: #13202a; }
@@ -15,12 +15,12 @@
 .rhythm-approach-path { stroke: #977a5c; stroke-width: 2; stroke-dasharray: 4 8; }
 .rhythm-approach-arrow { stroke: #b29370; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .rhythm-contact-mark { stroke: #e1f1e8; stroke-width: 3; stroke-linecap: round; transition: opacity .1s; }
-.rhythm-input-link { stroke: #648998; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .rhythm-beat-dots { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); display: flex; gap: 13px; align-items: center; height: 22px; }
 .rhythm-beat-dots > span:not(:last-child) { width: 7px; height: 7px; border: 1px solid #7899a6; border-radius: 50%; background: #13202a; transition: background .15s; }
 .rhythm-beat-dots > .filled:not(:last-child) { background: #9fbfc9; }
 .rhythm-beat-target { font-size: 16px; color: #9fbfc9; }
-.rhythm-action { margin: 8px 0 0; min-height: 49px; display: flex; align-items: center; justify-content: center; }
+.rhythm-controls { display: flex; align-items: center; justify-content: center; gap: 32px; margin-top: 12px; }
+.rhythm-action { min-height: 49px; display: flex; align-items: center; justify-content: center; }
 .game-screen .rhythm-parry-button { display: inline-flex; align-items: center; justify-content: center; gap: 18px; min-width: 238px; padding: 10px 20px; background: #1b303b; border: 1px solid #83b2c0; border-radius: 9px; color: #e0f1f4; font: inherit; cursor: pointer; }
 .game-screen .rhythm-parry-button:hover:not(:disabled) { background: #284552; }
 .game-screen .rhythm-parry-button:disabled { cursor: default; opacity: .6; }
@@ -31,7 +31,7 @@
 .rhythm-sensor-action { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: #b8d5e0; }
 .rhythm-sensor-action svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 3; }
 .rhythm-sensor-action > span { font-size: 11px; }
-.rhythm-feedback { width: 238px; margin: 9px auto 0; min-height: 62px; }
+.rhythm-feedback { width: 238px; min-height: 62px; }
 .rhythm-result-label { margin: 0 0 8px; min-height: 20px; color: #d9c49d; font-size: 12px; font-weight: 600; }
 .is-success .rhythm-result-label { color: #afe1c4; }
 .rhythm-timing-scale { position: relative; height: 6px; border-radius: 3px; background: #263640; }
@@ -63,12 +63,13 @@
   .has-rhythm-guide .game-time-value { font-size: 44px; }
   .has-rhythm-guide .game-hp-bars { margin: 12px 0 8px; }
   .has-rhythm-guide .game-instruction { min-height: 0; padding: 10px 12px; }
-  .rhythm-arena { height: 190px; }
+  .rhythm-arena { height: 270px; }
   .game-instruction .rhythm-guide h1 { font-size: 26px; }
   .rhythm-hint { margin-top: 5px; }
   .rhythm-action { min-height: 44px; }
   .game-screen .rhythm-parry-button { padding-top: 8px; padding-bottom: 8px; }
-  .rhythm-feedback { margin-top: 6px; min-height: 57px; }
+  .rhythm-controls { margin-top: 8px; }
+  .rhythm-feedback { min-height: 57px; }
   .has-rhythm-guide .target-disc { width: 70px; }
   .has-rhythm-guide .targets-hint { margin-top: 6px; }
   .has-rhythm-guide .game-footer { margin-top: 6px; }
@@ -76,9 +77,12 @@
   .has-rhythm-guide .game-mock-controls { padding-top: 8px; }
 }
 @media (max-width: 700px) {
-  .rhythm-arena { height: 185px; margin: 0 -12px; }
+  .rhythm-arena { height: 260px; margin: 0 -12px; }
   .rhythm-hint { font-size: 12px; }
   .rhythm-hint > span { display: block; margin-left: 0; font-size: 9px; }
+}
+@media (max-width: 580px) {
+  .rhythm-controls { flex-direction: column; gap: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .rhythm-approach-ring, .rhythm-incoming-sword, .rhythm-approach-path, .rhythm-approach-arrow { display: none; }

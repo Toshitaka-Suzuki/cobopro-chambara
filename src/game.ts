@@ -56,8 +56,12 @@ function isGameActive(game: GameState): boolean {
 
 /** 残り HP に応じた攻撃受付時間をミリ秒で返す。命中するたびに短くなる。 */
 export function getAttackWindowMs(hp: number): number {
-  const damageCount = Math.min(MAX_ROBOT_HP - 1, Math.max(0, MAX_ROBOT_HP - hp));
-  return ATTACK_WINDOWS_MS[damageCount];
+  return ATTACK_WINDOWS_MS[getGameLevel(hp) - 1];
+}
+
+/** 命中で1→2→3へ進む。最後の命中は勝利なので、レベル4にはしない。 */
+export function getGameLevel(hp: number): number {
+  return Math.min(MAX_ROBOT_HP, Math.max(1, MAX_ROBOT_HP - hp + 1));
 }
 
 const CLEARED_TARGET = { target: null, pendingTarget: null, attackRemainingMs: 0, phaseRemainingMs: 0 };

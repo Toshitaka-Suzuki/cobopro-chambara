@@ -4,6 +4,7 @@ import type { GamePhase } from './game';
 import type { InputMode } from './inputMode';
 import { projectRhythm } from './rhythm';
 import type { ParryFeedback, RhythmSnapshot } from './rhythm';
+import { ParryBurst } from './BattleFeedback';
 import './rhythm.css';
 
 type Props = {
@@ -40,7 +41,7 @@ export function RhythmCue({ rhythm, feedback, phase, headingRef, inputMode, onPa
     <p className="rhythm-hint">輪が重なる瞬間に <span lang="en">MATCH THE RINGS</span></p>
 
     <div className="rhythm-arena" aria-hidden="true">
-      <svg viewBox="20 0 600 240" fill="none">
+      <svg viewBox="100 0 440 240" fill="none">
         <path className="rhythm-approach-path" d="M126 41 246 102" />
         <path className="rhythm-approach-arrow" d="m231 87 15 15-22-3" />
         <circle className="rhythm-track" cx="320" cy="117" r="105" />
@@ -64,35 +65,41 @@ export function RhythmCue({ rhythm, feedback, phase, headingRef, inputMode, onPa
         <g className="rhythm-contact-mark" style={{ opacity: impact || success ? 1 : 0 }}>
           <path d="m306 116-9-2m39 8 9 3m-23-24 2-9m-9 40-2 9" />
         </g>
-        <path className="rhythm-input-link" d="M320 177v32m-5-5 5 5 5-5" />
+        {success && <ParryBurst />}
       </svg>
+      {success && <div className="parry-success-label">
+        <svg viewBox="0 0 40 40" fill="none"><path d="m8 20 8 8 16-17" /></svg>
+        <strong lang="en">PARRY!</strong><span>受け成功</span>
+      </div>}
       <div className="rhythm-beat-dots">
         {[1, 2, 3].map(beat => <span key={beat} className={cue && cue.beat >= beat ? 'filled' : ''} />)}
         <span className="rhythm-beat-target">✕</span>
       </div>
     </div>
 
-    <div className="rhythm-action">
-      {inputMode === 'mock' ? <button type="button" className="rhythm-parry-button"
-        disabled={phase !== 'defend' || pendingParry} onClick={onParry}
-        aria-label="Spaceキー、またはクリックで受ける / Press Space or click to parry">
-        <span className="rhythm-key"><span aria-hidden="true">⎵</span> SPACE</span>
-        <span>受ける <span lang="en">PARRY</span></span>
-      </button> : <span className="rhythm-sensor-action">
-        <svg viewBox="0 0 40 40" aria-hidden="true"><path d="m7 33 26-26M3 27l10 10M7 7l26 26m-6 4 10-10" /></svg>
-        剣で受ける <span lang="en">BLOCK</span>
-      </span>}
-    </div>
-
-    <div className={`rhythm-feedback ${showFeedback ? 'has-result' : ''}`} role="status">
-      <p className="rhythm-result-label">{showFeedback ? resultLabel : '\u00a0'}</p>
-      <div className="rhythm-timing-scale" aria-hidden="true">
-        <span className="rhythm-timing-window" />
-        <span className="rhythm-timing-center" />
-        {showFeedback && <span className="rhythm-input-marker" style={{ left: `${feedbackPosition}%` }} />}
+    <div className="rhythm-controls">
+      <div className="rhythm-action">
+        {inputMode === 'mock' ? <button type="button" className="rhythm-parry-button"
+          disabled={phase !== 'defend' || pendingParry} onClick={onParry}
+          aria-label="Spaceキー、またはクリックで受ける / Press Space or click to parry">
+          <span className="rhythm-key"><span aria-hidden="true">⎵</span> SPACE</span>
+          <span>受ける <span lang="en">PARRY</span></span>
+        </button> : <span className="rhythm-sensor-action">
+          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="m7 33 26-26M3 27l10 10M7 7l26 26m-6 4 10-10" /></svg>
+          剣で受ける <span lang="en">BLOCK</span>
+        </span>}
       </div>
-      <div className="rhythm-timing-legend" aria-hidden="true">
-        <span>EARLY</span><span>●</span><span>LATE</span>
+
+      <div className={`rhythm-feedback ${showFeedback ? 'has-result' : ''}`} role="status">
+        <p className="rhythm-result-label">{showFeedback ? resultLabel : '\u00a0'}</p>
+        <div className="rhythm-timing-scale" aria-hidden="true">
+          <span className="rhythm-timing-window" />
+          <span className="rhythm-timing-center" />
+          {showFeedback && <span className="rhythm-input-marker" style={{ left: `${feedbackPosition}%` }} />}
+        </div>
+        <div className="rhythm-timing-legend" aria-hidden="true">
+          <span>EARLY</span><span>●</span><span>LATE</span>
+        </div>
       </div>
     </div>
   </div>;

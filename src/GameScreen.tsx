@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { CSSProperties, RefObject } from 'react';
-import { MAX_ROBOT_HP, ROUND_DURATION_MS, TARGETS, getAttackWindowMs, isGameFinished } from './game';
+import { MAX_ROBOT_HP, ROUND_DURATION_MS, TARGETS, getAttackWindowMs, getGameLevel, isGameFinished } from './game';
 import type { GamePhase, GameState } from './game';
 import { INPUT_MODE_LABELS } from './inputMode';
 import type { InputMode } from './inputMode';
@@ -8,6 +8,7 @@ import { useGameSession } from './useGameSession';
 import type { GameAudio, GameSoundEffect } from './gameAudio';
 import type { SwordSensorInput } from './swordSensor';
 import { RhythmCue } from './RhythmCue';
+import { LevelMeter, LevelUpCue } from './BattleFeedback';
 import type { RhythmSnapshot, ParryFeedback } from './rhythm';
 import './game-screen.css';
 
@@ -23,7 +24,7 @@ type GameScreenProps = {
 };
 
 const PHASE_SOUND_EFFECTS: Partial<Record<GamePhase, GameSoundEffect>> = {
-  defend: 'cue', success: 'clash', attack: 'open', damage: 'hit', win: 'win', lose: 'lose', timeup: 'timeup',
+  defend: 'cue', success: 'clash', attack: 'open', damage: 'levelUp', win: 'win', lose: 'lose', timeup: 'timeup',
 };
 const PHASE_ENGLISH: Record<GamePhase, string> = {
   idle: 'READY', ready: 'READY', defend: 'PARRY', success: 'BLOCKED',
@@ -113,6 +114,7 @@ export function GameView({ headingRef, audio, soundEnabled, onToggleSound, input
   const modeLabel = INPUT_MODE_LABELS[inputMode];
   const needsConnection = inputMode === 'sensor' && !sensorState.ready;
   const showRhythm = rhythmSupported && ['defend', 'miss', 'ready', 'success'].includes(game.phase);
+  const level = getGameLevel(game.hp);
 
   return (
     <main className={`game-screen phase-${game.phase} ${rhythmSupported ? 'has-rhythm-guide' : ''}`}>
@@ -124,6 +126,7 @@ export function GameView({ headingRef, audio, soundEnabled, onToggleSound, input
             <div><strong className="game-time-value">{String(seconds).padStart(2, '0')}</strong><span className="time-unit">秒</span></div>
             <div className="round-time-track" aria-hidden="true"><span style={{ width: `${game.roundRemainingMs / ROUND_DURATION_MS * 100}%` }} /></div>
           </div>
+          <LevelMeter level={level} />
           <div className="game-hp" aria-label={`ロボットのHP ${game.hp} / ${MAX_ROBOT_HP}`}>
             <span className="hud-label">ロボットHP</span>
             <div className="game-hp-bars" aria-hidden="true">{Array.from({ length: MAX_ROBOT_HP }, (_, index) => <span key={index} className={index < game.hp ? 'hp-filled' : ''} />)}</div>
@@ -132,7 +135,8 @@ export function GameView({ headingRef, audio, soundEnabled, onToggleSound, input
         </header>
 
         <section className="game-instruction" aria-live={showRhythm ? 'off' : 'polite'} aria-atomic="true">
-          {showRhythm ? <RhythmCue rhythm={rhythm} feedback={parryFeedback} phase={game.phase} headingRef={headingRef}
+          {game.phase === 'damage' ? <LevelUpCue level={level} integrated={integrated} headingRef={headingRef} />
+          : showRhythm ? <RhythmCue rhythm={rhythm} feedback={parryFeedback} phase={game.phase} headingRef={headingRef}
             inputMode={inputMode} onParry={() => runManualAction(receiveSword)} pendingParry={pendingParry} /> : <>
           <div className="cue-emblem"><CueMark phase={game.phase} /></div>
           <p className="cue-label">{cue.label}</p>

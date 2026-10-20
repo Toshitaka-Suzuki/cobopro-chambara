@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { INITIAL_GAME_STATE, transitionGame, transitionGameWithElapsed } from './game.ts';
+import { INITIAL_GAME_STATE, getGameLevel, transitionGame, transitionGameWithElapsed } from './game.ts';
 import type { GameState, GamePhase, TargetId } from './game.ts';
 
 // UIプレビュー用の状態生成は本番コードに持ち込まず、テストの準備に閉じ込める。
@@ -28,6 +28,7 @@ test('モックの受け入力は受けの場面で一度だけ成功になり�
   const success = transitionGame(defend, { type: 'swordClash', target: 2 });
   assert.equal(success.phase, 'success');
   assert.equal(success.hp, 3);
+  assert.equal(getGameLevel(success.hp), 1);
   assert.equal(success.pendingTarget, 2);
   assert.equal(transitionGame(success, { type: 'swordClash', target: 0 }), success);
   const attack = transitionGame(success, { type: 'tick', elapsedMs: 900 });
@@ -143,6 +144,7 @@ test('受け成功と命中は別。3回の有効命中で勝利する', () => {
     assert.equal(game, once);
   }
   assert.equal(game.phase, 'win');
+  assert.equal(getGameLevel(game.hp), 3);
 });
 test('暗い弱点と時間外の命中ではHPが減らない', () => {
   let game = attack(transitionGame(INITIAL_GAME_STATE, { type: 'start' }), 2);
@@ -162,6 +164,7 @@ test('一時停止中はタイマーと命中を受け付けない', () => {
   assert.equal(transitionGame(game, { type: 'hit', target: 1 }), paused);
   game = transitionGame(game, { type: 'resume' });
   assert.equal(game.attackRemainingMs, 8000);
+  assert.equal(getGameLevel(game.hp), 1);
   assert.equal(transitionGame(game, { type: 'hit', target: 1 }).hp, 2);
 });
 test('受け失敗は敗北と区別し、紙風船の破損で敗北する', () => {
@@ -177,12 +180,15 @@ test('ダメージ後に難易度が上がり、時間切れだけでは上が�
   game = transitionGame(game, { type: 'tick', elapsedMs: 8000 });
   game = attack(game);
   assert.equal(game.attackRemainingMs, 8000);
+  assert.equal(getGameLevel(game.hp), 1);
   game = transitionGame(game, { type: 'hit', target: 1 });
   game = attack(game);
   assert.equal(game.attackRemainingMs, 6000);
+  assert.equal(getGameLevel(game.hp), 2);
   game = transitionGame(game, { type: 'hit', target: 1 });
   game = attack(game);
   assert.equal(game.attackRemainingMs, 4000);
+  assert.equal(getGameLevel(game.hp), 3);
 });
 test('開始前は命中・受け入力では進まない', () => {
   assert.equal(transitionGame(INITIAL_GAME_STATE, { type: 'hit', target: 1 }), INITIAL_GAME_STATE);

@@ -1,4 +1,4 @@
-export type GameSoundEffect = 'cue' | 'clash' | 'open' | 'hit' | 'win' | 'lose' | 'timeup' | 'count' | 'go';
+export type GameSoundEffect = 'cue' | 'clash' | 'open' | 'hit' | 'levelUp' | 'win' | 'lose' | 'timeup' | 'count' | 'go';
 type SynthVoice = { oscillator: OscillatorNode; envelope: GainNode };
 
 const MASTER_VOLUME = 0.25;
@@ -87,11 +87,12 @@ export class GameAudio {
         this.tone(587.33, 0.2, 0.3, 0.17, 'triangle');
         break;
       case 'clash':
-        // 非整数倍の倍音を重ねて、短い金属的な響きを作る。
-        this.tone(730, 0.23, 0.3);
-        this.tone(1173, 0.17, 0.18);
-        this.tone(1867, 0.11, 0.1);
-        this.tone(2741, 0.065, 0.04);
+        // 接触の鋭い立ち上がりと、弾き返した金属音の短い余韻。
+        this.tone(880, 0.38, 0.3);
+        this.tone(1427, 0.28, 0.18);
+        this.tone(2381, 0.14, 0.1);
+        this.tone(3511, 0.055, 0.06);
+        this.tone(1760, 0.32, 0.09, 0.035);
         break;
       case 'open':
         this.notes([523.25, 783.99], 0.11, 0.22);
@@ -99,6 +100,11 @@ export class GameAudio {
       case 'hit':
         this.tone(145, 0.18, 0.4, 0, 'sine', 55);
         this.notes([659.25, 987.77], 0.065, 0.2);
+        break;
+      case 'levelUp':
+        this.tone(145, 0.14, 0.3, 0, 'sine', 55);
+        [659.25, 783.99, 1046.5, 1318.51].forEach((note, index) =>
+          this.tone(note, 0.23, 0.2, 0.12 + index * 0.08, 'triangle'));
         break;
       case 'win':
         this.notes([523.25, 659.25, 783.99, 1046.5], 0.14, 0.25);

@@ -31,8 +31,10 @@ export function parseRhythm(message: Record<string, unknown>, sentAt: number, no
 }
 
 export function projectRhythm(state: RhythmSnapshot | null, now: number) {
-  if (!state || !state.active || now < state.receivedAt || now - state.receivedAt > RHYTHM_STALE_MS) return null;
-  const position = state.positionMs + now - state.receivedAt;
+  if (!state || !state.active || now - state.receivedAt > RHYTHM_STALE_MS) return null;
+  // 同期応答はRAFの間にも届く。直前のフレーム時刻が受信時刻より古くても、
+  // 待機表示へ戻さず、届いた音声位置から描画を続ける。
+  const position = state.positionMs + Math.max(0, now - state.receivedAt);
   const [start, second, third, target] = state.beatsMs;
   // 次の同期情報を受け取るまで、過ぎた攻撃を繰り返さない。
   if (position >= target + state.windowMs / 2) return null;
