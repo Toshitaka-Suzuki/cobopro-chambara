@@ -1,7 +1,8 @@
-import type { Ref } from 'react';
+import type { ReactNode, Ref } from 'react';
 import type { SwordSensorSnapshot } from './swordSensor';
 import { INPUT_MODE_LABELS } from './inputMode';
 import type { InputMode } from './inputMode';
+import type { ExperienceMode } from './integratedSession';
 
 type PlaySetupProps = {
   headingRef: Ref<HTMLHeadingElement>;
@@ -10,10 +11,16 @@ type PlaySetupProps = {
   sensorState: SwordSensorSnapshot;
   notice: string;
   onStart: () => void;
+  experienceMode: ExperienceMode;
+  onExperienceModeChange: (mode: ExperienceMode) => void;
+  integrationReady: boolean;
+  connectionControls: ReactNode;
 };
 
-export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, notice, onStart }: PlaySetupProps) {
-  const canStart = inputMode === 'mock' || sensorState.ready;
+export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, notice, onStart,
+  experienceMode, onExperienceModeChange, integrationReady, connectionControls }: PlaySetupProps) {
+  const integrated = experienceMode === 'integrated';
+  const canStart = (inputMode === 'mock' || sensorState.ready) && (!integrated || integrationReady);
   return (
     <main className="setup-screen">
       <nav className="setup-navigation" aria-label="画面移動">
@@ -24,8 +31,21 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
         <header className="setup-heading">
           <p className="setup-kicker">ロボットと、チャンバラ。</p>
           <h1 ref={headingRef} tabIndex={-1}>プレイの準備</h1>
-          <p>入力方法を選んで、ゲームを始めましょう。</p>
+          <p>遊び方と入力方法を選んで、ゲームを始めましょう。</p>
         </header>
+
+        <fieldset className="input-mode-picker">
+          <legend>遊び方</legend>
+          <label className={`input-mode-choice${integrated ? ' is-selected' : ''}`}>
+            <input type="radio" name="experience" checked={integrated} onChange={() => onExperienceModeChange('integrated')} />
+            <span><strong>会話・BGM連携</strong><small>作戦の会話から、音楽に合わせた対戦、感想まで</small></span>
+          </label>
+          <label className={`input-mode-choice${!integrated ? ' is-selected' : ''}`}>
+            <input type="radio" name="experience" checked={!integrated} onChange={() => onExperienceModeChange('standalone')} />
+            <span><strong>画面単独テスト</strong><small>統合アプリなしで、画面と入力を確認</small></span>
+          </label>
+        </fieldset>
+        {integrated && connectionControls}
 
         <fieldset className="input-mode-picker">
           <legend>入力方法</legend>
@@ -44,7 +64,7 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
           <section className="setup-input-check is-ready" aria-label="ゲームテストの準備">
             <span className="setup-check-mark" aria-hidden="true">✓</span>
             <div>
-              <h2>機器なしで開始できます</h2>
+              <h2>キーとボタンで入力します</h2>
               <p>剣を受ける操作は <kbd>Space</kbd>。命中は画面のボタンで試せます。次の受け待ちへは自動で進みます。</p>
               {sensorState.connected && <p>USB接続は保持中です。このモードではゲームの入力に使いません。</p>}
             </div>
@@ -59,7 +79,7 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
                 {!sensorState.ready && <a className="setup-settings-link" href="#/admin">管理画面で設定する <span aria-hidden="true">→</span></a>}
               </div>
             </section>
-            <p className="setup-assistance">受け待ちの信号でパリィ成功、ランプ点灯中の信号で命中とします。叩いたランプの色は、今は判定しません。次の受け待ちへは自動で進みます。</p>
+            <p className="setup-assistance">{integrated ? '受け待ちの信号をBGMのタイミングで判定します。' : '受け待ちの信号でパリィ成功とします。'}ランプ点灯中の信号は命中とします。叩いたランプの色は、今は判定しません。次の受け待ちへは自動で進みます。</p>
           </div>
         )}
 
@@ -67,7 +87,9 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
           <button className="start-game-button" disabled={!canStart} onClick={onStart} aria-describedby="start-game-hint">
             ゲーム開始 <span aria-hidden="true">→</span>
           </button>
-          <p id="start-game-hint">{canStart ? '3秒のカウントダウン後に始まります。' : '管理画面で接続と入力を確認すると、開始できます。'}</p>
+          <p id="start-game-hint">{integrated && !integrationReady ? '統合アプリに接続して、準備完了になるまでお待ちください。'
+            : canStart ? integrated ? 'まず作戦を話しましょう。会話の後、カウントダウンで対戦が始まります。'
+              : '3秒のカウントダウン後に始まります。' : '管理画面で接続と入力を確認すると、開始できます。'}</p>
         </div>
         {inputMode === 'sensor' && <p className="setup-assistance">画面移動やモックへの切り替えでも接続を保ちます。USBを抜く・切断する・ページを再読み込みした場合は、再接続が必要です。</p>}
       </div>

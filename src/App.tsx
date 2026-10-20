@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AdminScreen } from './AdminScreen';
 import { Countdown } from './Countdown';
 import { GameScreen } from './GameScreen';
@@ -13,12 +13,19 @@ import { SerialMonitor } from './serial';
 import type { SerialApi } from './serial';
 import { SwordSensorInput } from './swordSensor';
 import { useAppSession } from './useAppSession';
+import { IntegratedSession } from './integratedSession';
+import type { ExperienceMode } from './integratedSession';
+import { IntegrationConnection } from './IntegrationConnection';
+import { IntegratedExperience } from './IntegratedExperience';
 
 export function App() {
   const [baudRate, setBaudRate] = useState('115200');
   const [customBaudRate, setCustomBaudRate] = useState('');
   // 接続はアプリが所有し、管理画面とプレイ画面を行き来しても維持する。
   const [rosMonitor] = useState(() => new RosMonitor(createLazyRosTransport));
+  const [integration] = useState(() => new IntegratedSession());
+  const [experienceMode, setExperienceMode] = useState<ExperienceMode>('integrated');
+  const integrationState = useSyncExternalStore(integration.subscribe, integration.getSnapshot);
   const [{ serialMonitor, sensor, serialSupported }] = useState(() => {
     const serialApi = window.isSecureContext ? (navigator as Navigator & { serial?: SerialApi }).serial : undefined;
     const serialMonitor = new SerialMonitor(serialApi);
@@ -46,6 +53,18 @@ export function App() {
   }, []);
 
   useEffect(() => () => rosMonitor.disconnect(), [rosMonitor]);
+  useEffect(() => () => integration.disconnect(), [integration]);
+  useEffect(() => {
+    // 戻る・履歴移動でも、画面だけを離れてPythonのBGMや会話を残さない。
+    if (screen !== 'integrated' && integration.active && integration.getSnapshot().phase !== 'cancelling') {
+      integration.cancel();
+    }
+  }, [screen, integration]);
+  useEffect(() => {
+    const leave = () => integration.disconnect();
+    window.addEventListener('pagehide', leave);
+    return () => window.removeEventListener('pagehide', leave);
+  }, [integration]);
 
   useEffect(() => {
     document.title = `${title} | ロボットと、チャンバラ。`;
@@ -59,13 +78,16 @@ export function App() {
 
   const startGame = () => {
     if (!audio || (inputMode === 'sensor' && !sensor.getSnapshot().ready)) return;
+    if (experienceMode === 'integrated' && !integration.ready) return;
     audio.setMuted(!soundEnabled);
     // ブラウザーの音声制限を解除するため、開始クリックの中で呼ぶ。
     void audio.unlock().catch(() => {
       audio.setMuted(true);
       setSoundEnabled(false);
     });
-    session.startCountdown();
+    if (experienceMode === 'integrated') {
+      if (integration.start()) session.startIntegrated();
+    } else session.startCountdown();
   };
 
   const toggleSound = async () => {
@@ -87,9 +109,17 @@ export function App() {
 
   if (screen === 'play') {
     return <PlaySetup headingRef={headingRef} inputMode={inputMode} sensorState={sensorState}
-      notice={session.notice} onModeChange={session.changeInputMode} onStart={startGame} />;
+      notice={session.notice} onModeChange={session.changeInputMode} onStart={startGame}
+      experienceMode={experienceMode} onExperienceModeChange={setExperienceMode}
+      integrationReady={integrationState.connection === 'connected' && integration.ready}
+      connectionControls={<IntegrationConnection session={integration} />} />;
   }
 
+  if (screen === 'integrated' && audio) {
+    return <IntegratedExperience session={integration} inputMode={inputMode} sensor={sensor}
+      audio={audio} headingRef={headingRef} soundEnabled={soundEnabled}
+      onToggleSound={() => { void toggleSound(); }} />;
+  }
   if (screen === 'countdown' && audio) {
     return <Countdown headingRef={headingRef} onComplete={session.finishCountdown} audio={audio} inputMode={inputMode} />;
   }

@@ -1,0 +1,27 @@
+.integration-connection { margin: 24px 0; padding: 22px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
+.integration-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.integration-heading h2 { margin: 0; font-size: 17px; }
+.integration-heading span { color: var(--color-accent); font-size: 13px; }
+.integration-connection label { display: block; margin-bottom: 8px; font-size: 13px; }
+.integration-connect-fields { display: flex; gap: 8px; flex-wrap: wrap; }
+.integration-connect-fields input { min-width: 180px; flex: 1; padding: 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-background); color: inherit; font: inherit; font-size: 14px; }
+.integration-connect-fields button, .interview-actions button { padding: 12px 18px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: inherit; }
+.integration-connect-fields button:disabled { opacity: .45; }
+.integration-connection p { color: var(--color-muted); font-size: 13px; line-height: 1.8; }
+.integration-connection .integration-demo, .integration-demo-banner { color: #f8d290; }
+.integration-demo-banner { text-align: center; margin: 0; padding: 12px 20px; background: #342715; font-size: 13px; line-height: 1.6; }
+.interview-content { max-width: 850px; margin: auto; text-align: center; padding: 50px 24px; }
+.experience-steps { display: flex; gap: 16px; justify-content: center; padding: 0; margin: 0 0 72px; list-style: none; color: var(--color-muted); font-size: 14px; }
+.experience-steps li + li::before { content: '→'; margin-right: 16px; color: var(--color-muted); }
+.experience-steps li[aria-current] { color: var(--color-accent); font-weight: 700; }
+.interview-content h1 { font-size: clamp(26px, 5vw, 44px); line-height: 1.5; margin: 20px 0 30px; }
+.interview-content > p { line-height: 1.9; }
+.interview-help { color: var(--color-muted); font-size: 14px; }
+.interview-result { font-size: 24px; color: var(--color-accent); font-weight: 700; }
+.interview-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-top: 44px; }
+.interview-actions a { text-decoration: none; display: inline-block; }
+@media (max-width: 600px) {
+  .integration-connection { padding: 18px 14px; }
+  .experience-steps { gap: 8px; font-size: 12px; margin-bottom: 40px; }
+  .experience-steps li + li::before { margin-right: 8px; }
+}

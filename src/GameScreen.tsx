@@ -7,6 +7,8 @@ import type { InputMode } from './inputMode';
 import { useGameSession } from './useGameSession';
 import type { GameAudio, GameSoundEffect } from './gameAudio';
 import type { SwordSensorInput } from './swordSensor';
+import { RhythmCue } from './RhythmCue';
+import type { RhythmSnapshot, ParryFeedback } from './rhythm';
 import './game-screen.css';
 
 type GameScreenProps = {
@@ -22,6 +24,11 @@ type GameScreenProps = {
 
 const PHASE_SOUND_EFFECTS: Partial<Record<GamePhase, GameSoundEffect>> = {
   defend: 'cue', success: 'clash', attack: 'open', damage: 'hit', win: 'win', lose: 'lose', timeup: 'timeup',
+};
+const PHASE_ENGLISH: Record<GamePhase, string> = {
+  idle: 'READY', ready: 'READY', defend: 'PARRY', success: 'BLOCKED',
+  attack: 'HIT THE LIT TARGET', damage: 'HIT!', miss: 'TRY AGAIN',
+  win: 'YOU WIN', lose: 'TRY AGAIN', timeup: 'TIME UP',
 };
 
 function getGameCue(game: GameState) {
@@ -46,26 +53,42 @@ function CueMark({ phase }: { phase: GamePhase }) {
 }
 
 export function GameScreen({ headingRef, audio, soundEnabled, onToggleSound, inputMode, sensor, initialState, onOpenSettings }: GameScreenProps) {
-  const { game, gameRef, sensorState, sendAction, receiveSword, togglePause } = useGameSession({ inputMode, sensor, initialState });
+  const controller = useGameSession({ inputMode, sensor, initialState });
+  return <GameView {...{ headingRef, audio, soundEnabled, onToggleSound, inputMode, sensor, onOpenSettings, controller }} />;
+}
+
+type GameViewProps = Omit<GameScreenProps, 'initialState'> & {
+  controller: ReturnType<typeof useGameSession>;
+  integrated?: boolean;
+  pendingParry?: boolean;
+  rhythmSupported?: boolean;
+  rhythm?: RhythmSnapshot | null;
+  parryFeedback?: ParryFeedback | null;
+};
+
+export function GameView({ headingRef, audio, soundEnabled, onToggleSound, inputMode, sensor, onOpenSettings,
+  controller, integrated = false, pendingParry = false,
+  rhythmSupported = false, rhythm = null, parryFeedback = null }: GameViewProps) {
+  const { game, gameRef, sensorState, sendAction, receiveSword, togglePause } = controller;
   const resumeRef = useRef<HTMLButtonElement>(null);
   const pauseTitleRef = useRef<HTMLHeadingElement>(null);
   const wasPaused = useRef(false);
 
   useEffect(() => {
-    if (!gameRef.current.paused) audio.startMusic();
+    if (!integrated && !gameRef.current.paused) audio.startMusic();
     return () => audio.stop();
-  }, [audio, gameRef]);
+  }, [audio, gameRef, integrated]);
 
   useEffect(() => {
-    if (soundEnabled && !gameRef.current.paused && !isGameFinished(gameRef.current.phase)) audio.startMusic();
-  }, [audio, gameRef, soundEnabled]);
+    if (!integrated && soundEnabled && !gameRef.current.paused && !isGameFinished(gameRef.current.phase)) audio.startMusic();
+  }, [audio, gameRef, soundEnabled, integrated]);
 
   useEffect(() => {
     if (gameRef.current.paused) return;
     if (isGameFinished(game.phase)) audio.stop();
     const effect = PHASE_SOUND_EFFECTS[game.phase];
-    if (effect) audio.play(effect);
-  }, [audio, gameRef, game.phase]);
+    if (effect && !(rhythmSupported && effect === 'cue')) audio.play(effect);
+  }, [audio, gameRef, game.phase, rhythmSupported]);
 
   useEffect(() => {
     if (game.paused) {
@@ -89,11 +112,12 @@ export function GameScreen({ headingRef, audio, soundEnabled, onToggleSound, inp
   };
   const modeLabel = INPUT_MODE_LABELS[inputMode];
   const needsConnection = inputMode === 'sensor' && !sensorState.ready;
+  const showRhythm = rhythmSupported && ['defend', 'miss', 'ready', 'success'].includes(game.phase);
 
   return (
-    <main className={`game-screen phase-${game.phase}`}>
+    <main className={`game-screen phase-${game.phase} ${rhythmSupported ? 'has-rhythm-guide' : ''}`}>
       <div className="game-layout" inert={game.paused}>
-        <p className="game-input-mode">{modeLabel}</p>
+        <p className="game-input-mode">{integrated ? `会話・BGM連携 ／ ${modeLabel}` : modeLabel}</p>
         <header className="game-hud">
           <div className={`game-timer ${seconds <= 10 && !result ? 'time-low' : ''}`} role="timer" aria-label={`残り時間 ${seconds}秒`}>
             <span className="hud-label">残り時間</span>
@@ -107,20 +131,37 @@ export function GameScreen({ headingRef, audio, soundEnabled, onToggleSound, inp
           </div>
         </header>
 
-        <section className="game-instruction" aria-live="polite" aria-atomic="true">
+        <section className="game-instruction" aria-live={showRhythm ? 'off' : 'polite'} aria-atomic="true">
+          {showRhythm ? <RhythmCue rhythm={rhythm} feedback={parryFeedback} phase={game.phase} headingRef={headingRef}
+            inputMode={inputMode} onParry={() => runManualAction(receiveSword)} pendingParry={pendingParry} /> : <>
           <div className="cue-emblem"><CueMark phase={game.phase} /></div>
           <p className="cue-label">{cue.label}</p>
           <h1 ref={headingRef} tabIndex={-1} className={game.phase === 'attack' ? 'long-cue' : ''}>{cue.title}</h1>
+          {rhythmSupported && <p className="cue-english" lang="en">{PHASE_ENGLISH[game.phase]}</p>}
           <p className="cue-hint">{cue.hint}</p>
-          {result && <a className="play-again" href="#/play">もう一度挑戦する <span aria-hidden="true">→</span></a>}
+          {result && !integrated && <a className="play-again" href="#/play">もう一度挑戦する <span aria-hidden="true">→</span></a>}
+          </>}
+          {pendingParry && !showRhythm && <p role="status">受けのタイミングを確認中…</p>}
         </section>
 
         <section className="game-targets" aria-label="弱点ライト">
           <div className="game-target-row">{TARGETS.map(({ id, name, color, position }) => {
             const lit = game.phase === 'attack' && game.target === id;
             const progress = lit ? game.attackRemainingMs / getAttackWindowMs(game.hp) : 0;
-            return <div key={name} className={`game-target target-${color} ${lit ? 'is-lit' : ''}`} role="img" aria-label={`${name}のライト：${lit ? '点灯中' : '消灯'}`}>
-              <div className="target-disc"><span>{lit ? 'ここ！' : name}</span></div>
+            const clickable = rhythmSupported && inputMode === 'mock';
+            const targetMark = rhythmSupported ? <span className="target-picture">
+              {lit && <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
+                <circle cx="20" cy="20" r="11" /><circle cx="20" cy="20" r="4" />
+                <path d="M20 3v8m0 18v8M3 20h8m18 0h8" />
+              </svg>}
+              <span>{id + 1}</span>
+            </span> : <span>{lit ? 'ここ！' : name}</span>;
+            return <div key={name} className={`game-target target-${color} ${lit ? 'is-lit' : ''}`}
+              role={clickable ? 'group' : 'img'} aria-label={`${name}のライト：${lit ? '点灯中' : '消灯'}`}>
+              {clickable ? <button type="button" className="target-disc" disabled={game.phase !== 'attack'}
+                aria-label={`${id + 1} ${name}を叩く / Hit ${color} target`}
+                onClick={() => runManualAction(() => sendAction({ type: 'hit', target: id }))}>{targetMark}</button>
+                : <div className="target-disc">{targetMark}</div>}
               <div className="target-caption"><span>{name}</span><span className="target-position">{position}</span></div>
               <div className="target-window" aria-hidden="true" style={{ '--target-progress': `${progress * 100}%` } as CSSProperties}><span /></div>
             </div>;
@@ -132,18 +173,21 @@ export function GameScreen({ headingRef, audio, soundEnabled, onToggleSound, inp
           <div className="game-tools">
             <a className="back-link" href="#/play">← プレイの準備に戻る</a>
             <div>
-              <button type="button" aria-pressed={soundEnabled} onClick={() => runManualAction(onToggleSound)}>{soundEnabled ? '♪ 音 ON' : '♪ 音 OFF'}</button>
-              <button type="button" disabled={result} onClick={togglePause}>一時停止 <kbd>Esc</kbd></button>
+              <button type="button" aria-pressed={soundEnabled} onClick={() => runManualAction(onToggleSound)}>{integrated ? '効果音 ' : '♪ 音 '}{soundEnabled ? 'ON' : 'OFF'}</button>
+              <button type="button" disabled={result} onClick={togglePause}>{integrated ? '中断する' : '一時停止'} <kbd>Esc</kbd></button>
             </div>
           </div>
           <div className="game-mock-controls" aria-label={inputMode === 'sensor' ? 'ゲームの手動補助' : 'ゲームのモック操作'}>
             <span className="mock-caption">{inputMode === 'sensor' ? '手動補助' : 'モック操作'}</span>
-            {inputMode === 'mock' && <button disabled={game.phase !== 'defend'} onClick={() => runManualAction(receiveSword)}><kbd>Space</kbd> 受けた</button>}
+            {inputMode === 'mock' && <button disabled={game.phase !== 'defend' || pendingParry} onClick={() => runManualAction(receiveSword)}><kbd>Space</kbd> 受けた</button>}
             {inputMode === 'mock' && TARGETS.map(({ id, name }) => <button key={name} disabled={game.phase !== 'attack'} onClick={() => runManualAction(() => sendAction({ type: 'hit', target: id }))}><kbd>{id + 1}</kbd> {name}を叩く</button>)}
             <button disabled={game.phase !== 'defend'} onClick={() => runManualAction(() => sendAction({ type: 'miss' }))}><kbd>F</kbd> 受け失敗</button>
             <button disabled={result} onClick={() => runManualAction(() => sendAction({ type: 'balloon' }))}><kbd>B</kbd> 紙風船が割れた</button>
           </div>
-          {inputMode === 'sensor' && <p className="game-input-help">受け・命中はセンサの信号で判定します。今は叩いたランプの色を判定しません。次の受けは自動で始まります。</p>}
+          {integrated && <p className="game-input-help">{rhythmSupported
+            ? '3つの予告音で構えて、最後の高い「カン！」で受けよう。BGMと予告音は統合アプリのPCから流れます。'
+            : '音楽に合わせて受けよう。BGMは統合アプリのPCから流れます。'} 中断すると、このゲームは終了します。</p>}
+          {inputMode === 'sensor' && <p className="game-input-help">{integrated ? '受けはBGMのタイミングで判定し、点灯中の接触を命中とします。' : '受け・命中はセンサの信号で判定します。'}今は叩いたランプの色を判定しません。次の受けは自動で始まります。</p>}
         </footer>
       </div>
 

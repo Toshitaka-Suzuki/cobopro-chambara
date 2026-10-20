@@ -1,4 +1,4 @@
-export type AppScreen = 'home' | 'play' | 'admin' | 'countdown' | 'game';
+export type AppScreen = 'home' | 'play' | 'admin' | 'countdown' | 'game' | 'integrated';
 // ゲーム内の場面とは別に、開始手順と管理画面への一時退避を管理する。
 export type SessionPhase = 'idle' | 'countdown' | 'playing' | 'settings';
 
@@ -8,6 +8,7 @@ export const SCREEN_HASHES: Record<AppScreen, string> = {
   admin: '#/admin',
   countdown: '#/play/countdown',
   game: '#/play/game',
+  integrated: '#/play/experience',
 };
 
 export const SCREEN_TITLES: Record<AppScreen, string> = {
@@ -16,6 +17,7 @@ export const SCREEN_TITLES: Record<AppScreen, string> = {
   admin: '機器の設定',
   countdown: '開始カウントダウン',
   game: 'ゲーム画面',
+  integrated: '会話・BGM連携',
 };
 
 /** URLのハッシュを画面名へ変換する。空文字・未定義のパスは画面選択として扱う。 */
@@ -31,6 +33,7 @@ export function screenFromHash(hash: string): AppScreen {
 export function resolveScreen(route: AppScreen, phase: SessionPhase): AppScreen {
   if (route === 'countdown' && phase !== 'countdown') return 'play';
   if (route === 'game' && phase !== 'playing') return 'play';
+  if (route === 'integrated' && phase !== 'playing') return 'play';
   return route;
 }
 
@@ -45,6 +48,6 @@ export function sessionPhaseAfterNavigation(
 ): SessionPhase {
   if (screen === 'game' && phase === 'settings' && hasSavedGame) return 'playing';
   if (screen === 'admin' && phase === 'settings') return 'settings';
-  if (screen === 'countdown' || screen === 'game') return phase;
+  if (screen === 'countdown' || screen === 'game' || screen === 'integrated') return phase;
   return 'idle';
 }

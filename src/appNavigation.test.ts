@@ -8,6 +8,7 @@ test('既存のURLを画面へ対応付け、不明なURLは画面選択へ戻�
   assert.equal(screenFromHash('#/admin'), 'admin');
   assert.equal(screenFromHash('#/play/countdown'), 'countdown');
   assert.equal(screenFromHash('#/play/game'), 'game');
+  assert.equal(screenFromHash('#/play/experience'), 'integrated');
   assert.equal(screenFromHash(''), 'home');
   assert.equal(screenFromHash('#/invalid'), 'home');
 });
@@ -19,6 +20,8 @@ test('直リンク・再読み込みではカウントダウンとゲームを�
   assert.equal(resolveScreen('countdown', 'playing'), 'play');
   assert.equal(resolveScreen('countdown', 'countdown'), 'countdown');
   assert.equal(resolveScreen('game', 'playing'), 'game');
+  assert.equal(resolveScreen('integrated', 'idle'), 'play');
+  assert.equal(resolveScreen('integrated', 'playing'), 'integrated');
 });
 
 test('管理画面からの復帰は保存したゲームがある場合だけ許可する', () => {

@@ -1,0 +1,86 @@
+.rhythm-guide { width: min(100%, 650px); position: relative; }
+.game-instruction .rhythm-guide h1 { font-size: clamp(23px, 2.6vw, 34px); line-height: 1.3; text-shadow: none; animation: none; }
+.rhythm-guide h1 > span { margin-left: 10px; font-size: .7em; color: #aac6d2; letter-spacing: .12em; }
+.rhythm-hint { margin: 8px 0 0; color: #b8c6d0; font-size: 13px; line-height: 1.7; }
+.rhythm-hint > span { margin-left: 10px; color: #839ca8; font-size: 10px; letter-spacing: .08em; }
+.rhythm-arena { position: relative; height: 240px; }
+.rhythm-arena > svg { height: 100%; width: 100%; overflow: visible; }
+.rhythm-track { stroke: #3b515d; stroke-width: 1; stroke-dasharray: 2 9; }
+.rhythm-target-ring { stroke: #476a7c; stroke-width: 8; fill: #13202a; }
+.rhythm-approach-ring { stroke: #c3e8ed; stroke-width: 3; transition: opacity .14s; }
+.rhythm-player-sword { fill: #c6e7f0; stroke: #c6e7f0; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rhythm-player-sword path + path { stroke-width: 7; }
+.rhythm-incoming-sword { fill: #e7b686; stroke: #e7b686; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: opacity .14s; }
+.rhythm-incoming-sword path + path { stroke-width: 7; }
+.rhythm-approach-path { stroke: #977a5c; stroke-width: 2; stroke-dasharray: 4 8; }
+.rhythm-approach-arrow { stroke: #b29370; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rhythm-contact-mark { stroke: #e1f1e8; stroke-width: 3; stroke-linecap: round; transition: opacity .1s; }
+.rhythm-input-link { stroke: #648998; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rhythm-beat-dots { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); display: flex; gap: 13px; align-items: center; height: 22px; }
+.rhythm-beat-dots > span:not(:last-child) { width: 7px; height: 7px; border: 1px solid #7899a6; border-radius: 50%; background: #13202a; transition: background .15s; }
+.rhythm-beat-dots > .filled:not(:last-child) { background: #9fbfc9; }
+.rhythm-beat-target { font-size: 16px; color: #9fbfc9; }
+.rhythm-action { margin: 8px 0 0; min-height: 49px; display: flex; align-items: center; justify-content: center; }
+.game-screen .rhythm-parry-button { display: inline-flex; align-items: center; justify-content: center; gap: 18px; min-width: 238px; padding: 10px 20px; background: #1b303b; border: 1px solid #83b2c0; border-radius: 9px; color: #e0f1f4; font: inherit; cursor: pointer; }
+.game-screen .rhythm-parry-button:hover:not(:disabled) { background: #284552; }
+.game-screen .rhythm-parry-button:disabled { cursor: default; opacity: .6; }
+.rhythm-parry-button > span:last-child { font-size: 12px; }
+.rhythm-parry-button > span:last-child > span { margin-left: 5px; font-size: 10px; letter-spacing: .08em; color: #a8c7d0; }
+.rhythm-key { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; letter-spacing: .06em; }
+.rhythm-key > span { font-size: 24px; line-height: 16px; }
+.rhythm-sensor-action { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: #b8d5e0; }
+.rhythm-sensor-action svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 3; }
+.rhythm-sensor-action > span { font-size: 11px; }
+.rhythm-feedback { width: 238px; margin: 9px auto 0; min-height: 62px; }
+.rhythm-result-label { margin: 0 0 8px; min-height: 20px; color: #d9c49d; font-size: 12px; font-weight: 600; }
+.is-success .rhythm-result-label { color: #afe1c4; }
+.rhythm-timing-scale { position: relative; height: 6px; border-radius: 3px; background: #263640; }
+.rhythm-timing-window { position: absolute; left: 35%; width: 30%; top: 0; bottom: 0; border-radius: 3px; background: #486e64; }
+.rhythm-timing-center { position: absolute; left: 50%; top: -4px; height: 14px; width: 1px; background: #b6d7c9; }
+.rhythm-input-marker { position: absolute; top: -3px; width: 12px; height: 12px; margin-left: -6px; background: #f1d3a7; border: 2px solid #17242d; border-radius: 50%; }
+.is-success .rhythm-input-marker { background: #b8f0cd; }
+.rhythm-timing-legend { display: flex; justify-content: space-between; margin-top: 5px; color: #77919d; font-size: 9px; letter-spacing: .05em; }
+.rhythm-timing-legend > span:nth-child(2) { color: #a1c6b7; }
+.has-rhythm-guide .game-instruction { padding: 16px 12px; }
+.has-rhythm-guide .game-input-mode { margin-bottom: 10px; }
+.has-rhythm-guide .game-targets { padding: 8px 0; }
+.has-rhythm-guide .target-disc { width: clamp(65px, 8vw, 96px); }
+.has-rhythm-guide .target-caption { margin-top: 7px; }
+.has-rhythm-guide .game-layout { padding-top: 24px; }
+/* 背景全体の明滅は使わず、動く輪と剣に視線を集める。 */
+.has-rhythm-guide .game-instruction::before { display: none; }
+.cue-english { margin: 10px 0 0; color: #afc7cf; font-size: 13px; letter-spacing: .1em; }
+.has-rhythm-guide button.target-disc { padding: 0; cursor: pointer; font-family: inherit; }
+.has-rhythm-guide button.target-disc:disabled { cursor: default; }
+.has-rhythm-guide button.target-disc:focus-visible { outline: 3px solid white; outline-offset: 5px; }
+.target-picture { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 2px; }
+.target-picture > svg { width: 32px; height: 32px; stroke: currentColor; stroke-width: 2; }
+.target-picture > span { font-size: 20px; }
+.is-lit .target-picture > span { font-size: 12px; }
+@media (min-width: 701px) and (max-height: 900px) {
+  .has-rhythm-guide .game-layout { padding: 16px 36px 12px; }
+  .has-rhythm-guide .game-input-mode { margin-bottom: 8px; padding: 4px 8px; }
+  .has-rhythm-guide .game-time-value { font-size: 44px; }
+  .has-rhythm-guide .game-hp-bars { margin: 12px 0 8px; }
+  .has-rhythm-guide .game-instruction { min-height: 0; padding: 10px 12px; }
+  .rhythm-arena { height: 190px; }
+  .game-instruction .rhythm-guide h1 { font-size: 26px; }
+  .rhythm-hint { margin-top: 5px; }
+  .rhythm-action { min-height: 44px; }
+  .game-screen .rhythm-parry-button { padding-top: 8px; padding-bottom: 8px; }
+  .rhythm-feedback { margin-top: 6px; min-height: 57px; }
+  .has-rhythm-guide .target-disc { width: 70px; }
+  .has-rhythm-guide .targets-hint { margin-top: 6px; }
+  .has-rhythm-guide .game-footer { margin-top: 6px; }
+  .has-rhythm-guide .game-tools { margin-bottom: 8px; }
+  .has-rhythm-guide .game-mock-controls { padding-top: 8px; }
+}
+@media (max-width: 700px) {
+  .rhythm-arena { height: 185px; margin: 0 -12px; }
+  .rhythm-hint { font-size: 12px; }
+  .rhythm-hint > span { display: block; margin-left: 0; font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rhythm-approach-ring, .rhythm-incoming-sword, .rhythm-approach-path, .rhythm-approach-arrow { display: none; }
+  .rhythm-contact-mark { transition: none; }
+}

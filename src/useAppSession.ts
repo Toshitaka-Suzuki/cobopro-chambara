@@ -110,9 +110,16 @@ export function useAppSession(sensor: SwordSensorInput) {
     navigate('admin');
   };
 
+  const startIntegrated = () => {
+    if (sessionPhaseRef.current !== 'idle') return;
+    sensor.discardPending();
+    changeSessionPhase('playing');
+    navigate('integrated');
+  };
+
   return {
     screen, inputMode, sensorState, notice, savedGameRef,
     canResumeGame: sessionPhase === 'settings' && savedGameRef.current !== null,
-    changeInputMode, startCountdown, finishCountdown, openSettings,
+    changeInputMode, startCountdown, finishCountdown, openSettings, startIntegrated,
   };
 }

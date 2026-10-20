@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { INITIAL_GAME_STATE, TARGETS, isGameFinished, transitionGame, transitionGameWithElapsed } from './game';
-import type { GameAction, GameState, TargetId } from './game';
+import { INITIAL_GAME_STATE, TARGETS, transitionGame, transitionGameWithElapsed } from './game';
+import type { GameAction, GameState } from './game';
 import type { InputMode } from './inputMode';
 import type { SwordSensorInput } from './swordSensor';
+import { useGameInput } from './useGameInput';
 
 const GAME_TICK_INTERVAL_MS = 50;
 
@@ -78,39 +79,7 @@ export function useGameSession({ inputMode, sensor, initialState }: GameSessionO
     return () => window.clearInterval(timer);
   }, [sendAction]);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.repeat || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]')) return;
-      if (event.code === 'Escape') {
-        event.preventDefault();
-        togglePause();
-        return;
-      }
-      if (gameRef.current.paused || isGameFinished(gameRef.current.phase)) return;
-      if (event.code === 'Space' && target instanceof HTMLElement && target.closest('button, a, summary')) return;
-      if (event.code === 'Space' && inputMode === 'mock') {
-        event.preventDefault();
-        receiveSword();
-      }
-      if (event.code === 'KeyF') {
-        event.preventDefault();
-        sendAction({ type: 'miss' });
-      }
-      if (event.code === 'KeyB') {
-        event.preventDefault();
-        sendAction({ type: 'balloon' });
-      }
-      const digit = /^(?:Digit|Numpad)([123])$/.exec(event.code);
-      if (digit && inputMode === 'mock') {
-        event.preventDefault();
-        sendAction({ type: 'hit', target: (Number(digit[1]) - 1) as TargetId });
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [inputMode, sendAction, receiveSword, togglePause]);
+  useGameInput(gameRef, inputMode, sendAction, receiveSword, togglePause);
 
   return { game, gameRef, sensorState, sendAction, receiveSword, togglePause };
 }
