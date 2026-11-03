@@ -65,6 +65,23 @@ PYTHONPATH=src .venv/bin/python -m chambara_app --mock-conversation
 
 Python 3.12を入れた場合は、`python3.11`を`python3.12`に置き換えます。
 
+`zsh: command not found: python3.11`と出る場合は、Python 3.11が未導入か、コマンドが見つからない状態です。
+`python3.12 --version`で3.12が使えるか確認してください。`python3`が3.9などの場合、そのまま代用はできません。このアプリは3.11または3.12を使用します。
+
+既に`.venv`がある場合は、先に`.venv/bin/python --version`を確認してください。3.11または3.12を表示すれば作成済みなので、作り直さず依存インストールから続けます。
+
+どちらも使えない場合は、Pythonを取得できる[uv](https://docs.astral.sh/uv/getting-started/installation/)で準備できます。
+`voice_recognition_and_bgm_app`フォルダーで次を実行してください。初回はネット接続が必要です。
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+"$HOME/.local/bin/uv" venv --python 3.12 --seed .venv
+.venv/bin/python --version
+```
+
+仮想環境を作成できたら、依存インストールから続けてください。
+模擬会話には上記の`requirements-integration-test.txt`、VOICEVOXで実際に会話する場合は`requirements.txt`を使います。
+
 `待ち受け ws://127.0.0.1:8765`と表示されたら、そのターミナルを開いたままにします。BGMはゲームの対戦が始まったときに流れます。
 
 ### 4. 画面側を準備して起動する（ターミナル2）
@@ -99,14 +116,36 @@ PowerShellで`npm.ps1`の実行が拒否される場合は、`npm.cmd ci`と`npm
 
 | 症状 | 確認すること |
 | --- | --- |
+| Macで`python3.11`が見つからない | `python3.12 --version`を確認します。両方なければ手順3のuvによる準備を行います。既に`.venv`がある場合は`.venv/bin/python --version`を確認し、対応版なら依存インストールから続けます。 |
 | `chambara_app`が見つからない | Pythonリポジトリ直下で実行し、上記の`PYTHONPATH`と`.venv`のPythonを使っているか確認します。 |
 | 通信仕様が古い、`--mock-conversation`が認識されない | Python側で`git branch --show-current`を実行し、`feat/browser-rhythm-guide`か確認します。 |
 | 接続できない | Python側に「待ち受け」が出ているか、接続先が`ws://127.0.0.1:8765`か確認します。制御接続は1つだけなので、別タブの接続も確認してください。 |
 | ポート8765が使用中 | 既に起動しているPythonを使うか停止します。別ポートで起動するならPythonの起動コマンドに`--port 8766`を追加し、画面側も8766へ変更します。 |
 | BGMが聞こえない | 対戦開始後か、PCの音量・出力先・Pythonのエラーを確認します。画面の「効果音」はPythonのBGMの音量には作用しません。 |
 | 音声デバイスなしで通信だけ確認したい | Pythonの起動コマンドに`--silent-audio`を追加します。BGMと予告音は鳴りません。 |
+| VOICEVOXへ接続できない（50021番） | 会話アプリより先にVOICEVOXを起動します。Macでは`curl http://127.0.0.1:50021/version`でバージョン番号が返ることを確認します。 |
 
-実際の音声会話も使う場合はWindowsでLLM・マイク・音声認識・TTSの準備が必要です。
+実際の音声会話も使う場合はLLM・マイク・音声認識・TTSの準備が必要です。
+Harukaによる読み上げはWindows向けです。Macでも使えるローカル音声合成として、Python側にVOICEVOX対応を追加しています。
+声の比較と設定はPython側の[VOICEVOXガイド](https://github.com/Toshitaka-Suzuki/voice_recognition_and_bgm_app/blob/feat/browser-rhythm-guide/docs/voicevox-guide.md)を参照してください。
+VOICEVOX用設定の初期音声は「剣崎雌雄」です。**会話アプリはVOICEVOXを自動起動しません。最初にVOICEVOXとOllamaを起動してください。**
+
+通常は[公式VOICEVOXアプリ](https://voicevox.hiroshiba.jp/)を開き、そのまま起動しておきます。このMacに用意したエンジン単体を使う場合は、ターミナル1で次を実行し、開いたままにします。
+
+```sh
+"$HOME/.local/share/chambara/voicevox-engine/run" --host 127.0.0.1 --port 50021 --disable_mutable_api
+```
+
+このエンジンはリポジトリ外に保存しているため、別のPCへcloneしても入りません。別のPCでは公式アプリをインストールしてください。公式アプリとエンジン単体は、どちらか一方だけを起動します。
+
+別のターミナルで`curl http://127.0.0.1:50021/version`を実行し、バージョン番号が返れば準備完了です。その後、Pythonリポジトリのフォルダーで会話アプリを起動します。
+
+```sh
+PYTHONPATH=src .venv/bin/python -m chambara_app --settings config/settings.voicevox.json
+```
+
+これはMacの仮想環境を使う例です。初回はPython側で通常の会話用依存を準備し、`llm.model`を取得済みのOllamaモデルに合わせてください。
+VOICEVOX対応は上記のPython側forkの`feat/browser-rhythm-guide`ブランチに含まれます。以前クローンした場合はブランチを更新し、`config/settings.voicevox.json`があることを確認してください。
 Python側の[README](https://github.com/Toshitaka-Suzuki/voice_recognition_and_bgm_app/blob/feat/browser-rhythm-guide/README.md)と[統合動作確認ガイド](https://github.com/Toshitaka-Suzuki/voice_recognition_and_bgm_app/blob/feat/browser-rhythm-guide/docs/integration-guide.md)を参照してください。通常の会話は、全依存と設定の準備後に`--mock-conversation`を外して起動します。
 
 ## 起動
@@ -157,7 +196,12 @@ USB接続にはPC版ChromeなどのWeb Serial対応ブラウザー、ROSの確�
 
 音声とBGMはPython側のPCで出力します。連携中はブラウザーの仮BGMを再生せず、効果音だけを出します。
 画面の「効果音」スイッチはPythonのBGM・音声には作用しません。
-ブラウザーには会話フェーズと案内を表示し、認識文・生成された返答はPythonのターミナルに表示します。
+実際の会話では、ブラウザーにロボットの質問・聞き取った参加者の発言・ロボットの返答を吹き出しで表示します。
+「話してください」「言葉を聞き取っています」「返答を考えています」「ロボットが話しています」を処理に合わせて切り替えます。
+返答待ちには動く点と経過秒数を表示し、15秒以上待つ場合は時間がかかっていることを案内します。経過秒数は待った時間で、完了予測ではありません。
+感想の会話は終了後も読み返せます。中断や次のゲーム開始では表示を消し、古い会話の通知を持ち越しません。
+音声を聞き取れなかった場合や返答生成に失敗した場合も画面で再試行を案内します。認識文・返答は従来どおりPythonのターミナルにも表示します。
+この表示にはPython側の`conversation_progress`通知への対応が必要です。画面側の`main`とPython側forkの`feat/browser-rhythm-guide`を更新し、Pythonを再起動してください。模擬会話と古いPython側では従来の案内表示になります。
 ROSによるロボット動作・実物の弱点ライト制御はまだ連動していません。
 
 連携中のEsc／「中断する」／準備画面への移動は`game_cancel`で両側を待機状態へ戻します。

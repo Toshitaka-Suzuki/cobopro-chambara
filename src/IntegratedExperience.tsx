@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { RefObject } from 'react';
 import { Countdown } from './Countdown';
+import { ConversationPanel } from './ConversationPanel';
 import { GameView } from './GameScreen';
 import type { GameAudio } from './gameAudio';
 import type { InputMode } from './inputMode';
@@ -103,11 +104,16 @@ export function IntegratedExperience({ session, inputMode, sensor, audio, headin
       <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
       {snapshot.error ? <p role="alert" className="setup-notice">{snapshot.error}</p>
         : (pre || post) ? <>
-          <p>{mock ? '会話の模擬動作を確認中です。約3秒で次へ進みます。' : 'ロボットの質問を聞いてから、マイクに向かって話してください。'}</p>
-          <p className="interview-help">{mock ? 'このモードでは録音・返答の生成・読み上げは行いません。'
-            : '話し終えると自動で録音を終え、ロボットがコメントを返します。操作は不要です。'}</p>
+          {!mock && snapshot.conversation ? <ConversationPanel progress={snapshot.conversation} /> : <>
+            <p>{mock ? '会話の模擬動作を確認中です。約3秒で次へ進みます。' : 'ロボットの質問を聞いてから、マイクに向かって話してください。'}</p>
+            <p className="interview-help">{mock ? 'このモードでは録音・返答の生成・読み上げは行いません。'
+              : '話し終えると自動で録音を終え、ロボットがコメントを返します。操作は不要です。'}</p>
+          </>}
           {pre && <p className="interview-help">会話中は制限時間を減らしません。</p>}
-        </> : complete ? <p>次のプレイを始める準備ができました。</p>
+        </> : complete ? <>
+          {snapshot.conversation && <ConversationPanel progress={snapshot.conversation} complete />}
+          <p>次のプレイを始める準備ができました。</p>
+        </>
           : snapshot.phase === 'starting_battle' ? <p role="status">統合アプリのBGM開始を確認しています…</p> : null}
       <div className="interview-actions">
         {snapshot.phase === 'pre_interview' && <button type="button" onClick={session.skipInterview}>会話をスキップして対戦へ</button>}

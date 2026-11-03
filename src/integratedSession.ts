@@ -7,6 +7,18 @@ export const DEFAULT_APP_URL = 'ws://127.0.0.1:8765';
 export type ExperienceMode = 'standalone' | 'integrated';
 export type IntegratedPhase = 'standby' | 'starting' | 'pre_interview' | 'countdown'
   | 'starting_battle' | 'battle' | 'ending' | 'post_interview' | 'complete' | 'cancelling';
+export type ConversationProgressStage = 'question' | 'preparing' | 'listening' | 'recognizing'
+  | 'thinking' | 'speaking' | 'retry';
+export type ConversationProgressReason = 'no_speech' | 'empty_transcript' | 'recording_failed'
+  | 'recognition_failed' | 'reply_failed' | 'speech_failed';
+export type ConversationMessage = { id: number; role: 'user' | 'assistant'; text: string };
+export type ConversationProgress = {
+  phase: 'strategy' | 'feedback';
+  stage: ConversationProgressStage;
+  startedAt: number;
+  messages: ConversationMessage[];
+  reason?: ConversationProgressReason;
+};
 export type IntegratedSnapshot = {
   connection: 'disconnected' | 'connecting' | 'connected';
   phase: IntegratedPhase;
@@ -18,6 +30,7 @@ export type IntegratedSnapshot = {
   rhythmSupported: boolean;
   rhythm: RhythmSnapshot | null;
   parryFeedback: ParryFeedback | null;
+  conversation: ConversationProgress | null;
 };
 export type AppSocket = Pick<WebSocket, 'onopen' | 'onmessage' | 'onerror' | 'onclose' | 'send' | 'close'>;
 type Pending = { name: string; deadline: number; sentAt: number; target?: TargetId };
@@ -28,6 +41,14 @@ type Options = {
   autoTick?: boolean;
 };
 const RESPONSE_TIMEOUT_MS = 10_000;
+const CONVERSATION_STAGES: readonly unknown[] = [
+  'question', 'preparing', 'listening', 'recognizing', 'thinking', 'speaking', 'retry',
+];
+const CONVERSATION_REASONS: readonly unknown[] = [
+  'no_speech', 'empty_transcript', 'recording_failed', 'recognition_failed', 'reply_failed', 'speech_failed',
+];
+const MAX_CONVERSATION_TEXT_LENGTH = 4_000;
+const MAX_CONVERSATION_MESSAGES = 12;
 
 export function appUrlError(value: string, secure = false): string | null {
   try {
@@ -47,6 +68,7 @@ export class IntegratedSession {
   private listeners = new Set<() => void>();
   private pending = new Map<string, Pending>();
   private serial = 0;
+  private conversationSerial = 0;
   private handshake = false;
   private postFinished = false;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -58,6 +80,7 @@ export class IntegratedSession {
     connection: 'disconnected', phase: 'standby', url: DEFAULT_APP_URL,
     conversationMode: 'live', game: INITIAL_GAME_STATE, pendingParry: false, error: '',
     rhythmSupported: false, rhythm: null, parryFeedback: null,
+    conversation: null,
   };
 
   constructor(options: Options = {}) {
@@ -116,7 +139,7 @@ export class IntegratedSession {
       socket.close();
     }
     this.update({ connection: 'disconnected', phase: 'standby', pendingParry: false,
-      rhythmSupported: false, rhythm: null, parryFeedback: null });
+      rhythmSupported: false, rhythm: null, parryFeedback: null, conversation: null });
   };
 
   start = (): boolean => {
@@ -259,6 +282,8 @@ export class IntegratedSession {
       this.fail(typeof message.text === 'string' ? message.text : '統合アプリでエラーが発生しました。');
     } else if (message.type === 'status') {
       if (this.handshake) this.status(message.value);
+    } else if (message.type === 'conversation_progress') {
+      this.conversationProgress(message);
     } else if (message.type === 'received') {
       const id = String(message.request_id);
       const item = this.pending.get(id);
@@ -292,6 +317,34 @@ export class IntegratedSession {
     }
   }
 
+  private conversationProgress(message: Record<string, unknown>): void {
+    if (!this.handshake || this.snapshot.connection !== 'connected' || this.snapshot.conversationMode !== 'live') return;
+    const expectedPhase = this.snapshot.phase === 'pre_interview' ? 'strategy'
+      : this.snapshot.phase === 'post_interview' ? 'feedback' : null;
+    if (expectedPhase === null || message.phase !== expectedPhase || !CONVERSATION_STAGES.includes(message.stage)) return;
+    const stage = message.stage as ConversationProgressStage;
+    if (message.text !== undefined && (typeof message.text !== 'string'
+      || !message.text.trim() || message.text.length > MAX_CONVERSATION_TEXT_LENGTH)) return;
+    const text = typeof message.text === 'string' ? message.text.trim() : undefined;
+    const role = stage === 'thinking' ? 'user' : stage === 'question' || stage === 'speaking' ? 'assistant' : null;
+    if (role !== null && text === undefined) return;
+    if (message.reason !== undefined && (stage !== 'retry' || !CONVERSATION_REASONS.includes(message.reason))) return;
+    const reason = message.reason as ConversationProgressReason | undefined;
+    const previous = this.snapshot.conversation;
+    let messages = previous?.messages ?? [];
+    const lastMessage = messages.at(-1);
+    if (role !== null && text !== undefined && (lastMessage?.role !== role || lastMessage.text !== text)) {
+      const entry: ConversationMessage = { id: ++this.conversationSerial, role, text };
+      messages = [...messages, entry].slice(-MAX_CONVERSATION_MESSAGES);
+    }
+    if (previous?.stage === stage && previous.reason === reason && previous.messages === messages) return;
+    this.update({ conversation: {
+      phase: expectedPhase, stage,
+      startedAt: this.options.now(),
+      messages, ...(reason === undefined ? {} : { reason }),
+    } });
+  }
+
   private status(value: unknown): void {
     const phase = this.snapshot.phase;
     if (value === 'standby') {
@@ -322,7 +375,12 @@ export class IntegratedSession {
   }
 
   private update(changes: Partial<IntegratedSnapshot>): void {
-    if (changes.phase && changes.phase !== this.snapshot.phase) this.phaseSince = this.options.now();
+    if (changes.phase && changes.phase !== this.snapshot.phase) {
+      this.phaseSince = this.options.now();
+      if (!(this.snapshot.phase === 'post_interview' && changes.phase === 'complete')) {
+        changes = { ...changes, conversation: null };
+      }
+    }
     this.snapshot = { ...this.snapshot, ...changes };
     for (const listener of this.listeners) listener();
   }
