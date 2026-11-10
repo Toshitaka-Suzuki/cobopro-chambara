@@ -1,10 +1,11 @@
 import { INITIAL_GAME_STATE, TARGETS, isGameFinished, transitionGame } from './game.ts';
-import type { GameAction, GameState, TargetId } from './game.ts';
+import type { Difficulty, GameAction, GameState, TargetId } from './game.ts';
 import { parseParryFeedback, parseRhythm } from './rhythm.ts';
 import type { ParryFeedback, RhythmSnapshot } from './rhythm.ts';
 
 export const DEFAULT_APP_URL = 'ws://127.0.0.1:8765';
 export type ExperienceMode = 'standalone' | 'integrated';
+export type ParrySource = 'python' | 'esp_legacy';
 export type IntegratedPhase = 'standby' | 'starting' | 'pre_interview' | 'countdown'
   | 'starting_battle' | 'battle' | 'ending' | 'post_interview' | 'complete' | 'cancelling';
 export type ConversationProgressStage = 'question' | 'preparing' | 'listening' | 'recognizing'
@@ -31,6 +32,8 @@ export type IntegratedSnapshot = {
   rhythm: RhythmSnapshot | null;
   parryFeedback: ParryFeedback | null;
   conversation: ConversationProgress | null;
+  parrySource: ParrySource;
+  espSupported: boolean;
 };
 export type AppSocket = Pick<WebSocket, 'onopen' | 'onmessage' | 'onerror' | 'onclose' | 'send' | 'close'>;
 type Pending = { name: string; deadline: number; sentAt: number; target?: TargetId };
@@ -80,7 +83,7 @@ export class IntegratedSession {
     connection: 'disconnected', phase: 'standby', url: DEFAULT_APP_URL,
     conversationMode: 'live', game: INITIAL_GAME_STATE, pendingParry: false, error: '',
     rhythmSupported: false, rhythm: null, parryFeedback: null,
-    conversation: null,
+    conversation: null, parrySource: 'python', espSupported: false,
   };
 
   constructor(options: Options = {}) {
@@ -139,13 +142,19 @@ export class IntegratedSession {
       socket.close();
     }
     this.update({ connection: 'disconnected', phase: 'standby', pendingParry: false,
-      rhythmSupported: false, rhythm: null, parryFeedback: null, conversation: null });
+      rhythmSupported: false, rhythm: null, parryFeedback: null, conversation: null, espSupported: false });
   };
 
-  start = (): boolean => {
-    if (!this.ready) return false;
+  start = (difficulty: Difficulty = 'easy', parrySource: ParrySource = 'python'): boolean => {
+    if (!this.ready || !['easy', 'normal', 'hard'].includes(difficulty)) return false;
+    if (!['python', 'esp_legacy'].includes(parrySource)) return false;
+    if (parrySource === 'esp_legacy' && (!this.snapshot.espSupported || !this.snapshot.rhythmSupported)) {
+      this.update({ error: 'ESP連携対応のPythonアプリへ更新・再起動し、4拍ガイドを有効にしてください。' });
+      return false;
+    }
     this.postFinished = false;
-    this.update({ game: INITIAL_GAME_STATE, error: '', phase: 'starting', rhythm: null, parryFeedback: null });
+    this.update({ game: { ...INITIAL_GAME_STATE, difficulty }, error: '', phase: 'starting', rhythm: null,
+      parryFeedback: null, parrySource });
     return this.send('game_start');
   };
 
@@ -169,6 +178,8 @@ export class IntegratedSession {
   /** ローカルの成功判定は使わず、受け入力はPythonからの判定を待つ。 */
   action = (action: GameAction): void => {
     if (this.snapshot.phase !== 'battle') return;
+    // ESP入力をキーや旧センサの接触で成功させない。紙風船破損だけは手動補助を残す。
+    if (this.snapshot.parrySource === 'esp_legacy' && action.type !== 'balloon') return;
     const oldPhase = this.snapshot.game.phase;
     this.advance();
     if (this.snapshot.phase !== 'battle') return;
@@ -184,6 +195,36 @@ export class IntegratedSession {
     if (!['contact', 'hit', 'miss', 'balloon'].includes(action.type)) return;
     this.applyGame(transitionGame(game, action));
   };
+
+  /** 既存ESPの確定イベント。到着時刻をBGMの判定窓へ照らし合わせない。 */
+  espParrySuccess = (): void => {
+    if (!this.acceptEsp('defend')) return;
+    this.applyGame(transitionGame(this.snapshot.game, { type: 'swordClash', target: 1 }));
+  };
+
+  /** 既存ファームウェアには失敗通知がない。無通知と通信欠落は区別できない。 */
+  espParryUnconfirmed = (): void => {
+    if (!this.acceptEsp('defend')) return;
+    this.applyGame({ ...transitionGame(this.snapshot.game, { type: 'miss' }),
+      notice: '成功通知を確認できませんでした。次の一撃に備えよう。' });
+  };
+
+  espWeakHit = (): void => {
+    if (!this.acceptEsp('attack')) return;
+    this.applyGame(transitionGame(this.snapshot.game, { type: 'hit', target: 1 }));
+  };
+
+  espWeakEnd = (): void => {
+    if (!this.acceptEsp('attack')) return;
+    this.applyGame({ ...transitionGame(this.snapshot.game, { type: 'externalAttackEnd' }),
+      notice: '弱点の受付が終了しました。次の一撃に備えよう。' });
+  };
+
+  private acceptEsp(phase: GameState['phase']): boolean {
+    if (this.snapshot.parrySource !== 'esp_legacy' || this.snapshot.phase !== 'battle') return false;
+    this.advance();
+    return this.snapshot.phase === 'battle' && this.snapshot.game.phase === phase;
+  }
 
   tick = (): void => {
     const now = this.options.now();
@@ -251,7 +292,11 @@ export class IntegratedSession {
     const sentAt = this.options.now();
     this.pending.set(request_id, { name, deadline: sentAt + RESPONSE_TIMEOUT_MS, sentAt, target });
     try {
-      this.socket.send(JSON.stringify({ type: 'signal', name, request_id, ...(count === undefined ? {} : { count }) }));
+      this.socket.send(JSON.stringify({ type: 'signal', name, request_id,
+        ...(count === undefined ? {} : { count }),
+        ...(name === 'game_start' ? { difficulty: this.snapshot.game.difficulty,
+          ...(this.snapshot.parrySource === 'esp_legacy' ? { parry_source: 'esp_legacy' } : {}) } : {}),
+      }));
       return true;
     } catch {
       this.fail('信号を送信できませんでした。再接続してください。');
@@ -270,14 +315,14 @@ export class IntegratedSession {
       return;
     }
     if (message.type === 'connected') {
-      if (message.protocol_version !== 2) {
-        this.fail('統合アプリを更新してください。この画面には通信仕様v2が必要です。');
+      if (message.protocol_version !== 3) {
+        this.fail('統合アプリを更新・再起動してください。この画面には難易度選択に対応した通信仕様v3が必要です。');
         return;
       }
       this.handshake = true;
       const mode = message.conversation_mode;
       this.update({ conversationMode: mode === 'mock' || mode === 'mock_silent' ? mode : 'live',
-        rhythmSupported: message.rhythm_guide === true });
+        rhythmSupported: message.rhythm_guide === true, espSupported: message.esp_legacy === true });
     } else if (message.type === 'error') {
       this.fail(typeof message.text === 'string' ? message.text : '統合アプリでエラーが発生しました。');
     } else if (message.type === 'status') {
@@ -360,7 +405,9 @@ export class IntegratedSession {
     } else if (value === 'battle_started' && phase === 'starting_battle') {
       this.lastTick = this.options.now();
       this.lastRhythmSync = -Infinity;
-      this.update({ phase: 'battle', game: transitionGame(INITIAL_GAME_STATE, { type: 'start' }) });
+      this.update({ phase: 'battle', game: transitionGame(INITIAL_GAME_STATE,
+        { type: 'start', difficulty: this.snapshot.game.difficulty,
+          ...(this.snapshot.parrySource === 'esp_legacy' ? { attackWindowMs: 10_000, externalAttackTimer: true } : {}) }) });
     } else if (value === 'post_interview' && phase === 'ending') {
       this.pending.clear();
       this.update({ phase: 'post_interview', pendingParry: false, rhythm: null });

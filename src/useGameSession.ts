@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { INITIAL_GAME_STATE, TARGETS, transitionGame, transitionGameWithElapsed } from './game';
-import type { GameAction, GameState } from './game';
+import type { Difficulty, GameAction, GameState } from './game';
 import type { InputMode } from './inputMode';
 import type { SwordSensorInput } from './swordSensor';
 import { useGameInput } from './useGameInput';
@@ -11,6 +11,7 @@ type GameSessionOptions = {
   inputMode: InputMode;
   sensor: SwordSensorInput;
   initialState: GameState | null;
+  difficulty: Difficulty;
 };
 
 /**
@@ -18,9 +19,9 @@ type GameSessionOptions = {
  * 時計・キー入力・センサ購読を管理し、実機モードではセンサ未準備時に停止する。
  * アンマウント時は購読とタイマーを解除し、シリアル接続は維持する。
  */
-export function useGameSession({ inputMode, sensor, initialState }: GameSessionOptions) {
+export function useGameSession({ inputMode, sensor, initialState, difficulty }: GameSessionOptions) {
   const [game, setGame] = useState<GameState>(() => {
-    const round = initialState ?? transitionGame(INITIAL_GAME_STATE, { type: 'start' });
+    const round = initialState ?? transitionGame(INITIAL_GAME_STATE, { type: 'start', difficulty });
     return inputMode === 'sensor' && !sensor.getSnapshot().ready ? transitionGame(round, { type: 'pause' }) : round;
   });
   const [sensorState, setSensorState] = useState(() => sensor.getSnapshot());

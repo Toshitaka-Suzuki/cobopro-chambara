@@ -24,7 +24,7 @@ export function useGameInput(
         event.preventDefault();
         receiveSword();
       }
-      if (event.code === 'KeyF') {
+      if (event.code === 'KeyF' && inputMode !== 'esp') {
         event.preventDefault();
         sendAction({ type: 'miss' });
       }

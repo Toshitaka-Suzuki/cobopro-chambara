@@ -1,4 +1,4 @@
-export type GameSoundEffect = 'cue' | 'clash' | 'open' | 'hit' | 'levelUp' | 'win' | 'lose' | 'timeup' | 'count' | 'go';
+export type GameSoundEffect = 'cue' | 'clash' | 'open' | 'hit' | 'win' | 'lose' | 'timeup' | 'count' | 'go';
 type SynthVoice = { oscillator: OscillatorNode; envelope: GainNode };
 
 const MASTER_VOLUME = 0.25;
@@ -100,11 +100,6 @@ export class GameAudio {
       case 'hit':
         this.tone(145, 0.18, 0.4, 0, 'sine', 55);
         this.notes([659.25, 987.77], 0.065, 0.2);
-        break;
-      case 'levelUp':
-        this.tone(145, 0.14, 0.3, 0, 'sine', 55);
-        [659.25, 783.99, 1046.5, 1318.51].forEach((note, index) =>
-          this.tone(note, 0.23, 0.2, 0.12 + index * 0.08, 'triangle'));
         break;
       case 'win':
         this.notes([523.25, 659.25, 783.99, 1046.5], 0.14, 0.25);

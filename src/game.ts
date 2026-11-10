@@ -1,12 +1,16 @@
 export type GamePhase = 'idle' | 'ready' | 'defend' | 'success' | 'attack' | 'damage' | 'miss' | 'win' | 'lose' | 'timeup';
 export type TargetId = 0 | 1 | 2;
+export type Difficulty = 'easy' | 'normal' | 'hard';
 
 export type GameState = {
   phase: GamePhase;
+  difficulty: Difficulty;
   hp: number;
   target: TargetId | null;
   pendingTarget: TargetId | null;
   attackRemainingMs: number;
+  attackWindowMs: number | null;
+  externalAttackTimer: boolean;
   roundRemainingMs: number;
   phaseRemainingMs: number;
   paused: boolean;
@@ -14,7 +18,9 @@ export type GameState = {
 };
 
 export type GameAction =
-  | { type: 'start' | 'miss' | 'balloon' | 'pause' | 'resume' }
+  | { type: 'start'; difficulty?: Difficulty; attackWindowMs?: number; externalAttackTimer?: boolean }
+  | { type: 'externalAttackEnd' }
+  | { type: 'miss' | 'balloon' | 'pause' | 'resume' }
   | { type: 'swordClash' | 'contact'; target?: TargetId }
   | { type: 'hit'; target: TargetId }
   | { type: 'tick'; elapsedMs: number };
@@ -26,7 +32,9 @@ const READY_DURATION_MS = 1_500;
 const DEFAULT_TARGET: TargetId = 1;
 
 // 画面試作の設定値。ロボットの速度やセンサの認識精度を表す値ではない。
-const ATTACK_WINDOWS_MS = [8_000, 6_000, 4_000] as const;
+const ATTACK_WINDOWS_MS: Record<Difficulty, number> = { easy: 8_000, normal: 6_000, hard: 4_000 };
+export const DIFFICULTY_LABELS: Record<Difficulty, string> = { easy: 'やさしい', normal: 'ふつう', hard: 'むずかしい' };
+export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'];
 export const TARGETS = [
   { id: 0, name: '赤', color: 'red', position: '左' },
   { id: 1, name: '青', color: 'blue', position: '中央' },
@@ -35,10 +43,13 @@ export const TARGETS = [
 
 export const INITIAL_GAME_STATE: GameState = {
   phase: 'idle',
+  difficulty: 'easy',
   hp: MAX_ROBOT_HP,
   target: null,
   pendingTarget: null,
   attackRemainingMs: 0,
+  attackWindowMs: null,
+  externalAttackTimer: false,
   roundRemainingMs: ROUND_DURATION_MS,
   phaseRemainingMs: 0,
   paused: false,
@@ -54,14 +65,13 @@ function isGameActive(game: GameState): boolean {
   return game.phase !== 'idle' && !isGameFinished(game.phase);
 }
 
-/** 残り HP に応じた攻撃受付時間をミリ秒で返す。命中するたびに短くなる。 */
-export function getAttackWindowMs(hp: number): number {
-  return ATTACK_WINDOWS_MS[getGameLevel(hp) - 1];
+/** 開始前に選んだ難易度の攻撃受付時間を返す。残りHPによって変更しない。 */
+export function getAttackWindowMs(difficulty: Difficulty): number {
+  return ATTACK_WINDOWS_MS[difficulty];
 }
 
-/** 命中で1→2→3へ進む。最後の命中は勝利なので、レベル4にはしない。 */
-export function getGameLevel(hp: number): number {
-  return Math.min(MAX_ROBOT_HP, Math.max(1, MAX_ROBOT_HP - hp + 1));
+export function getGameAttackWindowMs(game: GameState): number {
+  return game.attackWindowMs ?? getAttackWindowMs(game.difficulty);
 }
 
 const CLEARED_TARGET = { target: null, pendingTarget: null, attackRemainingMs: 0, phaseRemainingMs: 0 };
@@ -72,7 +82,7 @@ function openTarget(game: GameState): GameState {
     ...CLEARED_TARGET,
     phase: 'attack',
     target: game.pendingTarget ?? DEFAULT_TARGET,
-    attackRemainingMs: getAttackWindowMs(game.hp),
+    attackRemainingMs: getGameAttackWindowMs(game),
     notice: '',
   };
 }
@@ -105,6 +115,11 @@ function advanceTime(game: GameState, elapsedMs: number): GameState {
   // 遅いフレームでも表示待ちを越えた時間を次の場面へ引き継ぎ、制限時間を延ばさない。
   while (unprocessedMs > 0) {
     if (next.phase === 'attack') {
+      // ESPは独自の時計で受付を終了する。表示が0でも、終了通知が来るまで結果を待つ。
+      if (next.externalAttackTimer) {
+        next = { ...next, attackRemainingMs: Math.max(0, next.attackRemainingMs - unprocessedMs) };
+        break;
+      }
       const spentMs = Math.min(unprocessedMs, next.attackRemainingMs);
       next = { ...next, attackRemainingMs: next.attackRemainingMs - spentMs };
       unprocessedMs -= spentMs;
@@ -134,7 +149,9 @@ export function transitionGame(game: GameState, action: GameAction): GameState {
   if (action.type === 'pause') return isGameActive(game) ? { ...game, paused: true } : game;
   if (action.type === 'resume') return isGameActive(game) ? { ...game, paused: false } : game;
   if (game.paused) return game;
-  if (action.type === 'start') return isGameActive(game) ? game : { ...INITIAL_GAME_STATE, phase: 'defend' };
+  if (action.type === 'start') return isGameActive(game) ? game
+    : { ...INITIAL_GAME_STATE, phase: 'defend', difficulty: action.difficulty ?? 'easy',
+      attackWindowMs: action.attackWindowMs ?? null, externalAttackTimer: action.externalAttackTimer ?? false };
   if (action.type === 'tick') return advanceTime(game, action.elapsedMs);
   if (action.type === 'balloon') {
     return isGameActive(game) ? { ...game, ...CLEARED_TARGET, phase: 'lose', notice: '' } : game;
@@ -156,7 +173,10 @@ export function transitionGame(game: GameState, action: GameAction): GameState {
     }
   }
 
-  if ((action.type === 'hit' || action.type === 'contact') && game.phase === 'attack' && game.attackRemainingMs > 0) {
+  if (action.type === 'externalAttackEnd' && game.phase === 'attack' && game.externalAttackTimer) return missAttack(game);
+
+  if ((action.type === 'hit' || action.type === 'contact') && game.phase === 'attack'
+    && (game.attackRemainingMs > 0 || game.externalAttackTimer)) {
     // 現行センサは接触位置を返さない。色の一致を検証できるのはモックの hit だけ。
     if (action.type === 'hit' && action.target !== game.target) return { ...game, notice: '光っている弱点を叩いて！' };
     const hp = game.hp - 1;

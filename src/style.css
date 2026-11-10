@@ -137,6 +137,9 @@ h1:focus { outline: none; }
 .input-mode-choice:has(input:focus-visible) { outline: 3px solid var(--color-accent); outline-offset: 4px; }
 .input-mode-choice strong { display: block; font-size: 14px; line-height: 1.6; }
 .input-mode-choice small { display: block; color: var(--color-muted); font-size: 12px; line-height: 1.7; margin-top: 6px; }
+.difficulty-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.difficulty-picker .input-mode-choice { padding: 16px 12px; gap: 8px; }
+.difficulty-help { grid-column: 1 / -1; margin: 0; color: var(--color-muted); font-size: 12px; line-height: 1.8; }
 .sensor-preparation { display: grid; gap: 16px; }
 .setup-settings-link { display: inline-flex; align-items: center; gap: 12px; margin-top: 16px; color: var(--color-accent); font-size: 13px; text-underline-offset: 4px; }
 .setup-content > .setup-assistance { margin-top: 20px; }

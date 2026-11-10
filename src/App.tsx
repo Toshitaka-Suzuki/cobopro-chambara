@@ -7,6 +7,7 @@ import { PlaySetup } from './PlaySetup';
 import { SerialConnection } from './SerialConnection';
 import { SCREEN_HASHES, SCREEN_TITLES } from './appNavigation';
 import { GameAudio } from './gameAudio';
+import type { Difficulty } from './game';
 import { createLazyRosTransport } from './lazyRosTransport';
 import { RosMonitor } from './ros';
 import { SerialMonitor } from './serial';
@@ -17,6 +18,8 @@ import { IntegratedSession } from './integratedSession';
 import type { ExperienceMode } from './integratedSession';
 import { IntegrationConnection } from './IntegrationConnection';
 import { IntegratedExperience } from './IntegratedExperience';
+import { LegacyEspController } from './legacyEsp';
+import { EspConnection } from './EspConnection';
 
 export function App() {
   const [baudRate, setBaudRate] = useState('115200');
@@ -25,12 +28,15 @@ export function App() {
   const [rosMonitor] = useState(() => new RosMonitor(createLazyRosTransport));
   const [integration] = useState(() => new IntegratedSession());
   const [experienceMode, setExperienceMode] = useState<ExperienceMode>('integrated');
+  const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const integrationState = useSyncExternalStore(integration.subscribe, integration.getSnapshot);
   const [{ serialMonitor, sensor, serialSupported }] = useState(() => {
     const serialApi = window.isSecureContext ? (navigator as Navigator & { serial?: SerialApi }).serial : undefined;
     const serialMonitor = new SerialMonitor(serialApi);
     return { serialMonitor, sensor: new SwordSensorInput(serialMonitor), serialSupported: !!serialApi };
   });
+  const [esp] = useState(() => new LegacyEspController(serialMonitor, integration));
+  const espState = useSyncExternalStore(esp.subscribe, esp.getSnapshot);
   const session = useAppSession(sensor);
   const { screen, inputMode, sensorState, savedGameRef } = session;
   const [audio, setAudio] = useState<GameAudio | null>(null);
@@ -40,11 +46,13 @@ export function App() {
 
   useEffect(() => {
     sensor.start();
+    esp.start();
     return () => {
+      esp.stop();
       sensor.stop();
       void serialMonitor.disconnect();
     };
-  }, [serialMonitor, sensor]);
+  }, [serialMonitor, sensor, esp]);
 
   useEffect(() => {
     const engine = new GameAudio();
@@ -79,6 +87,8 @@ export function App() {
   const startGame = () => {
     if (!audio || (inputMode === 'sensor' && !sensor.getSnapshot().ready)) return;
     if (experienceMode === 'integrated' && !integration.ready) return;
+    if (inputMode === 'esp' && (experienceMode !== 'integrated' || !esp.getSnapshot().ready
+      || !integrationState.espSupported || !integrationState.rhythmSupported)) return;
     audio.setMuted(!soundEnabled);
     // ブラウザーの音声制限を解除するため、開始クリックの中で呼ぶ。
     void audio.unlock().catch(() => {
@@ -86,8 +96,13 @@ export function App() {
       setSoundEnabled(false);
     });
     if (experienceMode === 'integrated') {
-      if (integration.start()) session.startIntegrated();
+      if (inputMode === 'esp' ? esp.startGame(difficulty) : integration.start(difficulty)) session.startIntegrated();
     } else session.startCountdown();
+  };
+
+  const changeExperienceMode = (mode: ExperienceMode) => {
+    if (mode === 'standalone' && inputMode === 'esp') session.changeInputMode('mock');
+    setExperienceMode(mode);
   };
 
   const toggleSound = async () => {
@@ -110,8 +125,11 @@ export function App() {
   if (screen === 'play') {
     return <PlaySetup headingRef={headingRef} inputMode={inputMode} sensorState={sensorState}
       notice={session.notice} onModeChange={session.changeInputMode} onStart={startGame}
-      experienceMode={experienceMode} onExperienceModeChange={setExperienceMode}
+      experienceMode={experienceMode} onExperienceModeChange={changeExperienceMode}
+      difficulty={difficulty} onDifficultyChange={setDifficulty}
       integrationReady={integrationState.connection === 'connected' && integration.ready}
+      espReady={espState.ready && integrationState.espSupported && integrationState.rhythmSupported}
+      espControls={<EspConnection controller={esp} monitor={serialMonitor} supported={serialSupported} session={integration} />}
       connectionControls={<IntegrationConnection session={integration} />} />;
   }
 
@@ -127,6 +145,7 @@ export function App() {
   if (screen === 'game' && audio) {
     return <GameScreen headingRef={headingRef} audio={audio} soundEnabled={soundEnabled}
       onToggleSound={() => { void toggleSound(); }} inputMode={inputMode} sensor={sensor}
+      difficulty={difficulty}
       initialState={savedGameRef.current} onOpenSettings={session.openSettings} />;
   }
 

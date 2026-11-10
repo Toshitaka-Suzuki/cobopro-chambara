@@ -1,36 +1,29 @@
 import type { RefObject } from 'react';
-import { MAX_ROBOT_HP } from './game';
+import { DIFFICULTY_LABELS } from './game';
+import type { Difficulty } from './game';
 import './battle-feedback.css';
 
-export function LevelMeter({ level }: { level: number }) {
-  return <div className="game-level" aria-label={`レベル ${level} / ${MAX_ROBOT_HP}`}>
-    <span className="hud-label" lang="en">LEVEL</span>
-    <div className="game-level-value"><strong>{level}</strong><span>/ {MAX_ROBOT_HP}</span>
-      {level === MAX_ROBOT_HP && <b className="game-level-max">MAX</b>}
-    </div>
-    <div className="level-steps" aria-hidden="true">{[1, 2, 3].map(step =>
-      <span key={step} className={step <= level ? 'is-filled' : ''} />)}</div>
+export function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
+  return <div className={`game-difficulty difficulty-${difficulty}`} aria-label={`難易度：${DIFFICULTY_LABELS[difficulty]}`}>
+    <span className="hud-label">難易度</span>
+    <strong lang="en">{difficulty.toUpperCase()}</strong>
+    <span className="game-difficulty-name">{DIFFICULTY_LABELS[difficulty]}</span>
   </div>;
 }
 
-export function LevelUpCue({ level, integrated, headingRef }: {
-  level: number;
-  integrated: boolean;
+export function HitCue({ remaining, difficulty, headingRef }: {
+  remaining: number;
+  difficulty: Difficulty;
   headingRef: RefObject<HTMLHeadingElement | null>;
 }) {
-  return <div className="level-up-cue">
-    <p className="level-up-hit">✓ HIT! <span>命中</span></p>
-    <h1 ref={headingRef} tabIndex={-1} className="level-up-title" lang="en">LEVEL UP</h1>
-    <div className="level-up-numbers" aria-label={`レベル ${level - 1} から ${level} へ`}>
-      <span className="level-up-previous" aria-hidden="true">{level - 1}</span>
-      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="m12 12 20 20-20 20m20-40 20 20-20 20" /></svg>
-      <strong className="level-up-next" aria-hidden="true">{level}</strong>
+  return <div className="hit-cue">
+    <p className="hit-cue-label" lang="en">✓ HIT!</p>
+    <h1 ref={headingRef} tabIndex={-1} className="hit-cue-title">命中！</h1>
+    <div className="hit-cue-remaining" aria-label={`あと${remaining}回で勝利`}>
+      <span aria-hidden="true">あと</span><strong aria-hidden="true">{remaining}</strong><span aria-hidden="true">回で勝利</span>
     </div>
-    <div className="level-steps level-up-steps" aria-hidden="true">{[1, 2, 3].map(step =>
-      <span key={step} className={`${step <= level ? 'is-filled' : ''} ${step === level ? 'is-new' : ''}`} />)}</div>
-    <p className="level-up-detail" lang="en">{level === MAX_ROBOT_HP ? 'MAX LEVEL' : 'NEXT LEVEL'}
-      {integrated && <span> · BGM SPEED UP ↑</span>}</p>
-    <p className="level-up-hint">{level === MAX_ROBOT_HP ? '最高レベル！ あと一撃。' : 'レベルアップ！ 次の一撃に備えよう。'}</p>
+    <p className="hit-cue-hint">{remaining === 1 ? 'あと一撃！ 落ち着いて構えよう。' : 'その調子！ 次の一撃に備えよう。'}</p>
+    <p className="hit-cue-difficulty">難易度：{DIFFICULTY_LABELS[difficulty]}</p>
   </div>;
 }
 

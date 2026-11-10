@@ -38,7 +38,9 @@ export function RhythmCue({ rhythm, feedback, phase, headingRef, inputMode, onPa
   const feedbackPosition = feedback ? 50 + Math.max(-43, Math.min(43, feedback.deltaMs / 10)) : 50;
   return <div className={`rhythm-guide ${success ? 'is-success' : ''}`}>
     <h1 ref={headingRef} tabIndex={-1}>受ける <span lang="en">PARRY</span></h1>
-    <p className="rhythm-hint">輪が重なる瞬間に <span lang="en">MATCH THE RINGS</span></p>
+    <p className="rhythm-hint">{phase === 'defend' && cue?.beat === 0
+      ? <>構えて、予告を待とう <span lang="en">STAY READY</span></>
+      : <>輪が重なる瞬間に <span lang="en">MATCH THE RINGS</span></>}</p>
 
     <div className="rhythm-arena" aria-hidden="true">
       <svg viewBox="100 0 440 240" fill="none">

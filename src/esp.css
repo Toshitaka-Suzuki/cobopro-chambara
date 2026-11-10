@@ -1,0 +1,50 @@
+.esp-connection {
+  padding: 1.25rem;
+  border: 1px solid #c9d9e8;
+  border-radius: 1rem;
+  background: #f6f9fc;
+  color: #213549;
+}
+
+.esp-connection-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem 1rem;
+}
+
+.esp-connection-heading h2 { margin: 0; font-size: 1.1rem; }
+.esp-connection-heading > span { font-size: .85rem; font-weight: 700; }
+.esp-connect-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
+.esp-connect-actions button {
+  padding: .65rem 1rem;
+  border: 1px solid #91a9c0;
+  border-radius: .5rem;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.esp-connect-actions button:disabled { cursor: default; opacity: .5; }
+.esp-help { font-size: .85rem; line-height: 1.65; }
+.esp-timing-field { margin-top: 1.25rem; display: flex; align-items: center; flex-wrap: wrap; gap: .6rem 1rem; }
+.esp-timing-field label { font-weight: 700; }
+.esp-timing-field > div { display: flex; gap: .5rem; align-items: center; }
+.esp-timing-field input {
+  box-sizing: border-box;
+  width: 7rem;
+  padding: .55rem;
+  border: 1px solid #91a9c0;
+  border-radius: .4rem;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+.esp-diagnostics { margin-top: 1rem; font-size: .82rem; }
+.esp-diagnostics summary { cursor: pointer; font-weight: 700; }
+.esp-diagnostics ol { max-height: 15rem; overflow: auto; padding: .75rem .75rem .75rem 2rem; background: #eaf0f6; }
+.esp-diagnostics li { padding: .2rem 0; overflow-wrap: anywhere; }
+.esp-diagnostics time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.game-target-row.is-esp-target { grid-template-columns: minmax(0, 240px); justify-content: center; }

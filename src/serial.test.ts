@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { SerialMonitor } from './serial.ts';
 import type { SerialApi, SerialPortApi } from './serial.ts';
-import { FakeSerialPort, waitUntil } from './testSupport/serial.ts';
+import { FakeSerialPort, FakeWritableSerialPort, waitUntil } from './testSupport/serial.ts';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -255,4 +255,149 @@ test('購読者の例外で受信や他の購読者への配信を止めない',
   assert.equal(monitor.getSnapshot().error, null);
   await monitor.disconnect();
   assert.deepEqual(port.events, ['open', 'cancel', 'close']);
+});
+
+test('読み取り専用・未接続のポートは送信できず、接続済みの読み取りは維持する', async () => {
+  const { monitor, port } = setup();
+  assert.equal(monitor.canWrite, false);
+  await assert.rejects(monitor.writeLine('p 0'), /書き込み可能/);
+  await monitor.connect(115200);
+  assert.equal(monitor.canWrite, false);
+  await assert.rejects(monitor.writeLine('p 0'), /書き込み可能/);
+  port.send('read-only still works');
+  await waitUntil(() => monitor.getSnapshot().text === 'read-only still works');
+  assert.equal(monitor.getSnapshot().error, null);
+  await monitor.disconnect();
+});
+
+test('現在開いているポートのボーレートだけを公開する', async () => {
+  const first = new FakeSerialPort();
+  const second = new FakeSerialPort();
+  const ports = [first, second];
+  const monitor = new SerialMonitor({ requestPort: async () => ports.shift()! });
+  assert.equal(monitor.baudRate, null);
+  const connecting = monitor.connect(9600);
+  assert.equal(monitor.baudRate, null);
+  await connecting;
+  assert.equal(monitor.baudRate, 9600);
+  const disconnecting = monitor.disconnect();
+  assert.equal(monitor.baudRate, null);
+  await disconnecting;
+  assert.equal(monitor.baudRate, null);
+  await monitor.connect(115200);
+  assert.equal(monitor.baudRate, 115200);
+  await monitor.disconnect();
+});
+
+test('指示をLF付きで順番に書き、送信中も受信を継続する', async () => {
+  const port = new FakeWritableSerialPort();
+  const { monitor } = setup(port);
+  const gate = deferred<void>();
+  port.writeGate = gate.promise;
+  await monitor.connect(115200);
+  assert.equal(monitor.canWrite, true);
+  const writes = [monitor.writeLine('p 1'), monitor.writeLine('p 2'), monitor.writeLine('p 0')];
+  await waitUntil(() => port.writes.length === 1);
+  assert.deepEqual(port.writes, ['p 1\n']);
+  port.send('[EVENT] PARRY SUCCESS (once)\n');
+  await waitUntil(() => monitor.getSnapshot().text.includes('PARRY SUCCESS'));
+  gate.resolve();
+  await Promise.all(writes);
+  assert.deepEqual(port.writes, ['p 1\n', 'p 2\n', 'p 0\n']);
+  await monitor.disconnect();
+  assert.equal(monitor.canWrite, false);
+  assert.deepEqual(port.events, ['open', 'cancel', 'abort-write', 'close']);
+});
+
+test('改行の混入・制御文字・長すぎる指示を送信前に拒否する', async () => {
+  const port = new FakeWritableSerialPort();
+  const { monitor } = setup(port);
+  await monitor.connect(115200);
+  for (const command of ['', '  ', 'p 1\np 2', 'p 2\r', '\0', 'p\t2', 'x'.repeat(256), 'あ'.repeat(100)]) {
+    await assert.rejects(monitor.writeLine(command));
+  }
+  assert.deepEqual(port.writes, []);
+  await monitor.writeLine('r');
+  assert.deepEqual(port.writes, ['r\n']);
+  await monitor.disconnect();
+});
+
+test('切断すると送信待ちを破棄し、再接続したポートへ旧指示を流さない', async () => {
+  const first = new FakeWritableSerialPort();
+  const second = new FakeWritableSerialPort();
+  const ports = [first, second];
+  const monitor = new SerialMonitor({ requestPort: async () => ports.shift()! });
+  const gate = deferred<void>();
+  first.writeGate = gate.promise;
+  await monitor.connect(115200);
+  const writing = assert.rejects(monitor.writeLine('p 1'));
+  const queued = assert.rejects(monitor.writeLine('p 2'), /未送信/);
+  await waitUntil(() => first.writes.length === 1);
+  const disconnecting = monitor.disconnect();
+  assert.equal(monitor.canWrite, false);
+  await assert.rejects(monitor.writeLine('w A'), /書き込み可能/);
+  gate.resolve();
+  await Promise.all([writing, queued, disconnecting]);
+  assert.deepEqual(first.writes, ['p 1\n']);
+  assert.equal(first.writable.locked, false);
+  await monitor.connect(115200);
+  await monitor.writeLine('r');
+  assert.deepEqual(second.writes, ['r\n']);
+  assert.equal(monitor.getSnapshot().error, null);
+  await monitor.disconnect();
+});
+
+test('送信エラーでは後続指示を止め、両方のロックを解放して切断する', async () => {
+  const port = new FakeWritableSerialPort();
+  const { monitor } = setup(port);
+  port.writeError = new Error('USB write failed');
+  await monitor.connect(115200);
+  const first = assert.rejects(monitor.writeLine('p 1'), /USB write failed/);
+  const queued = assert.rejects(monitor.writeLine('p 2'), /未送信/);
+  await Promise.all([first, queued]);
+  await waitUntil(() => monitor.getSnapshot().status === 'disconnected');
+  assert.deepEqual(port.writes, ['p 1\n']);
+  assert.equal(port.readable?.locked, false);
+  assert.equal(port.writable.locked, false);
+  assert.match(monitor.getSnapshot().error!, /送信中にエラー/);
+});
+
+test('接続を維持して未送信指示だけ破棄し、進行中送信の後に停止指示を送る', async () => {
+  const port = new FakeWritableSerialPort();
+  const { monitor } = setup(port);
+  const gate = deferred<void>();
+  port.writeGate = gate.promise;
+  await monitor.connect(115200);
+  const inFlight = monitor.writeLine('p 1');
+  const active = assert.rejects(monitor.writeLine('p 2'), /未送信/);
+  const weak = assert.rejects(monitor.writeLine('w A'), /未送信/);
+  await waitUntil(() => port.writes.length === 1);
+  monitor.discardPendingWrites();
+  const stop = monitor.writeLine('p 0');
+  const reset = monitor.writeLine('r');
+  gate.resolve();
+  await Promise.all([inFlight, active, weak, stop, reset]);
+  assert.deepEqual(port.writes, ['p 1\n', 'p 0\n', 'r\n']);
+  assert.equal(monitor.getSnapshot().status, 'connected');
+  assert.equal(monitor.getSnapshot().error, null);
+  assert.equal(monitor.canWrite, true);
+  await monitor.disconnect();
+});
+
+test('受信側の抜線でも送信待ちを停止してからポートを閉じる', async () => {
+  const port = new FakeWritableSerialPort();
+  const { monitor } = setup(port);
+  const gate = deferred<void>();
+  port.writeGate = gate.promise;
+  await monitor.connect(115200);
+  const writing = assert.rejects(monitor.writeLine('p 1'));
+  const queued = assert.rejects(monitor.writeLine('p 2'), /未送信/);
+  await waitUntil(() => port.writes.length === 1);
+  port.controller.error(new Error('unplugged'));
+  await waitUntil(() => monitor.getSnapshot().status === 'disconnecting');
+  gate.resolve();
+  await Promise.all([writing, queued]);
+  await waitUntil(() => monitor.getSnapshot().status === 'disconnected');
+  assert.deepEqual(port.writes, ['p 1\n']);
+  assert.match(monitor.getSnapshot().error!, /受信中にエラー/);
 });

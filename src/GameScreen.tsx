@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react';
 import type { CSSProperties, RefObject } from 'react';
-import { MAX_ROBOT_HP, ROUND_DURATION_MS, TARGETS, getAttackWindowMs, getGameLevel, isGameFinished } from './game';
-import type { GamePhase, GameState } from './game';
+import { MAX_ROBOT_HP, ROUND_DURATION_MS, TARGETS, getGameAttackWindowMs, isGameFinished } from './game';
+import type { Difficulty, GamePhase, GameState } from './game';
 import { INPUT_MODE_LABELS } from './inputMode';
 import type { InputMode } from './inputMode';
 import { useGameSession } from './useGameSession';
 import type { GameAudio, GameSoundEffect } from './gameAudio';
 import type { SwordSensorInput } from './swordSensor';
 import { RhythmCue } from './RhythmCue';
-import { LevelMeter, LevelUpCue } from './BattleFeedback';
+import { DifficultyBadge, HitCue } from './BattleFeedback';
 import type { RhythmSnapshot, ParryFeedback } from './rhythm';
 import './game-screen.css';
 
@@ -20,11 +20,12 @@ type GameScreenProps = {
   inputMode: InputMode;
   sensor: SwordSensorInput;
   initialState: GameState | null;
+  difficulty: Difficulty;
   onOpenSettings: (game: GameState) => void;
 };
 
 const PHASE_SOUND_EFFECTS: Partial<Record<GamePhase, GameSoundEffect>> = {
-  defend: 'cue', success: 'clash', attack: 'open', damage: 'levelUp', win: 'win', lose: 'lose', timeup: 'timeup',
+  defend: 'cue', success: 'clash', attack: 'open', damage: 'hit', win: 'win', lose: 'lose', timeup: 'timeup',
 };
 const PHASE_ENGLISH: Record<GamePhase, string> = {
   idle: 'READY', ready: 'READY', defend: 'PARRY', success: 'BLOCKED',
@@ -53,12 +54,12 @@ function CueMark({ phase }: { phase: GamePhase }) {
   return <svg className="cue-swords" viewBox="0 0 80 80" fill="none" aria-hidden="true"><g stroke="currentColor" strokeWidth="5" strokeLinecap="round"><path d="M18 62L63 17M10 54l16 16M11 69l8-8M62 62L17 17M54 70l16-16M61 61l8 8" /></g></svg>;
 }
 
-export function GameScreen({ headingRef, audio, soundEnabled, onToggleSound, inputMode, sensor, initialState, onOpenSettings }: GameScreenProps) {
-  const controller = useGameSession({ inputMode, sensor, initialState });
+export function GameScreen({ headingRef, audio, soundEnabled, onToggleSound, inputMode, sensor, initialState, difficulty, onOpenSettings }: GameScreenProps) {
+  const controller = useGameSession({ inputMode, sensor, initialState, difficulty });
   return <GameView {...{ headingRef, audio, soundEnabled, onToggleSound, inputMode, sensor, onOpenSettings, controller }} />;
 }
 
-type GameViewProps = Omit<GameScreenProps, 'initialState'> & {
+type GameViewProps = Omit<GameScreenProps, 'initialState' | 'difficulty'> & {
   controller: ReturnType<typeof useGameSession>;
   integrated?: boolean;
   pendingParry?: boolean;
@@ -112,9 +113,9 @@ export function GameView({ headingRef, audio, soundEnabled, onToggleSound, input
     headingRef.current?.focus();
   };
   const modeLabel = INPUT_MODE_LABELS[inputMode];
+  const esp = inputMode === 'esp';
   const needsConnection = inputMode === 'sensor' && !sensorState.ready;
   const showRhythm = rhythmSupported && ['defend', 'miss', 'ready', 'success'].includes(game.phase);
-  const level = getGameLevel(game.hp);
 
   return (
     <main className={`game-screen phase-${game.phase} ${rhythmSupported ? 'has-rhythm-guide' : ''}`}>
@@ -126,7 +127,7 @@ export function GameView({ headingRef, audio, soundEnabled, onToggleSound, input
             <div><strong className="game-time-value">{String(seconds).padStart(2, '0')}</strong><span className="time-unit">秒</span></div>
             <div className="round-time-track" aria-hidden="true"><span style={{ width: `${game.roundRemainingMs / ROUND_DURATION_MS * 100}%` }} /></div>
           </div>
-          <LevelMeter level={level} />
+          <DifficultyBadge difficulty={game.difficulty} />
           <div className="game-hp" aria-label={`ロボットのHP ${game.hp} / ${MAX_ROBOT_HP}`}>
             <span className="hud-label">ロボットHP</span>
             <div className="game-hp-bars" aria-hidden="true">{Array.from({ length: MAX_ROBOT_HP }, (_, index) => <span key={index} className={index < game.hp ? 'hp-filled' : ''} />)}</div>
@@ -135,7 +136,7 @@ export function GameView({ headingRef, audio, soundEnabled, onToggleSound, input
         </header>
 
         <section className="game-instruction" aria-live={showRhythm ? 'off' : 'polite'} aria-atomic="true">
-          {game.phase === 'damage' ? <LevelUpCue level={level} integrated={integrated} headingRef={headingRef} />
+          {game.phase === 'damage' ? <HitCue remaining={game.hp} difficulty={game.difficulty} headingRef={headingRef} />
           : showRhythm ? <RhythmCue rhythm={rhythm} feedback={parryFeedback} phase={game.phase} headingRef={headingRef}
             inputMode={inputMode} onParry={() => runManualAction(receiveSword)} pendingParry={pendingParry} /> : <>
           <div className="cue-emblem"><CueMark phase={game.phase} /></div>
@@ -149,24 +150,24 @@ export function GameView({ headingRef, audio, soundEnabled, onToggleSound, input
         </section>
 
         <section className="game-targets" aria-label="弱点ライト">
-          <div className="game-target-row">{TARGETS.map(({ id, name, color, position }) => {
+          <div className={`game-target-row${esp ? ' is-esp-target' : ''}`}>{TARGETS.filter(target => !esp || target.id === 1).map(({ id, name, color, position }) => {
             const lit = game.phase === 'attack' && game.target === id;
-            const progress = lit ? game.attackRemainingMs / getAttackWindowMs(game.hp) : 0;
+            const progress = lit ? Math.min(1, game.attackRemainingMs / getGameAttackWindowMs(game)) : 0;
             const clickable = rhythmSupported && inputMode === 'mock';
             const targetMark = rhythmSupported ? <span className="target-picture">
               {lit && <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
                 <circle cx="20" cy="20" r="11" /><circle cx="20" cy="20" r="4" />
                 <path d="M20 3v8m0 18v8M3 20h8m18 0h8" />
               </svg>}
-              <span>{id + 1}</span>
+              <span>{esp ? 'A' : id + 1}</span>
             </span> : <span>{lit ? 'ここ！' : name}</span>;
             return <div key={name} className={`game-target target-${color} ${lit ? 'is-lit' : ''}`}
-              role={clickable ? 'group' : 'img'} aria-label={`${name}のライト：${lit ? '点灯中' : '消灯'}`}>
+              role={clickable ? 'group' : 'img'} aria-label={`${esp ? '弱点A（中央・青）' : name}のライト：${lit ? '点灯中' : '消灯'}`}>
               {clickable ? <button type="button" className="target-disc" disabled={game.phase !== 'attack'}
                 aria-label={`${id + 1} ${name}を叩く / Hit ${color} target`}
                 onClick={() => runManualAction(() => sendAction({ type: 'hit', target: id }))}>{targetMark}</button>
                 : <div className="target-disc">{targetMark}</div>}
-              <div className="target-caption"><span>{name}</span><span className="target-position">{position}</span></div>
+              <div className="target-caption"><span>{esp ? '弱点A' : name}</span><span className="target-position">{esp ? '中央（青）' : position}</span></div>
               <div className="target-window" aria-hidden="true" style={{ '--target-progress': `${progress * 100}%` } as CSSProperties}><span /></div>
             </div>;
           })}</div>
@@ -181,17 +182,18 @@ export function GameView({ headingRef, audio, soundEnabled, onToggleSound, input
               <button type="button" disabled={result} onClick={togglePause}>{integrated ? '中断する' : '一時停止'} <kbd>Esc</kbd></button>
             </div>
           </div>
-          <div className="game-mock-controls" aria-label={inputMode === 'sensor' ? 'ゲームの手動補助' : 'ゲームのモック操作'}>
-            <span className="mock-caption">{inputMode === 'sensor' ? '手動補助' : 'モック操作'}</span>
+          <div className="game-mock-controls" aria-label={inputMode !== 'mock' ? 'ゲームの手動補助' : 'ゲームのモック操作'}>
+            <span className="mock-caption">{inputMode !== 'mock' ? '手動補助' : 'モック操作'}</span>
             {inputMode === 'mock' && <button disabled={game.phase !== 'defend' || pendingParry} onClick={() => runManualAction(receiveSword)}><kbd>Space</kbd> 受けた</button>}
             {inputMode === 'mock' && TARGETS.map(({ id, name }) => <button key={name} disabled={game.phase !== 'attack'} onClick={() => runManualAction(() => sendAction({ type: 'hit', target: id }))}><kbd>{id + 1}</kbd> {name}を叩く</button>)}
-            <button disabled={game.phase !== 'defend'} onClick={() => runManualAction(() => sendAction({ type: 'miss' }))}><kbd>F</kbd> 受け失敗</button>
+            {!esp && <button disabled={game.phase !== 'defend'} onClick={() => runManualAction(() => sendAction({ type: 'miss' }))}><kbd>F</kbd> 受け失敗</button>}
             <button disabled={result} onClick={() => runManualAction(() => sendAction({ type: 'balloon' }))}><kbd>B</kbd> 紙風船が割れた</button>
           </div>
           {integrated && <p className="game-input-help">{rhythmSupported
             ? '3つの予告音で構えて、最後の高い「カン！」で受けよう。BGMと予告音は統合アプリのPCから流れます。'
             : '音楽に合わせて受けよう。BGMは統合アプリのPCから流れます。'} 中断すると、このゲームは終了します。</p>}
           {inputMode === 'sensor' && <p className="game-input-help">{integrated ? '受けはBGMのタイミングで判定し、点灯中の接触を命中とします。' : '受け・命中はセンサの信号で判定します。'}今は叩いたランプの色を判定しません。次の受けは自動で始まります。</p>}
+          {esp && <p className="game-input-help">受け・命中はESPからの成功通知で進みます。弱点Aは中央の青、有効時間は10秒です。表示上の時間が終わっても、機器の終了通知を待ちます。</p>}
         </footer>
       </div>
 

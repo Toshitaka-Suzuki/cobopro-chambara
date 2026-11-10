@@ -9,6 +9,7 @@ export type SerialSnapshot = {
 
 export type SerialPortApi = {
   readonly readable: ReadableStream<Uint8Array> | null;
+  readonly writable?: WritableStream<Uint8Array> | null;
   open(options: { baudRate: number }): Promise<void>;
   close(): Promise<void>;
 };
@@ -20,6 +21,8 @@ export type SerialApi = {
 };
 
 const MAX_LOG_LENGTH = 64 * 1024;
+const MAX_COMMAND_BYTES = 256;
+const MAX_PENDING_WRITES = 64;
 
 function createCompletionSignal() {
   let resolve!: () => void;
@@ -29,8 +32,14 @@ function createCompletionSignal() {
 
 type SerialSession = {
   disconnectRequested: boolean;
+  baudRate: number | null;
   reader: ReadableStreamDefaultReader<Uint8Array> | null;
   readerCancellation: Promise<void> | null;
+  writer: WritableStreamDefaultWriter<Uint8Array> | null;
+  writerCancellation: Promise<void> | null;
+  writeTail: Promise<void>;
+  writeGeneration: number;
+  pendingWrites: number;
   connectionReady: ReturnType<typeof createCompletionSignal>;
   closed: ReturnType<typeof createCompletionSignal>;
 };
@@ -52,6 +61,72 @@ export class SerialMonitor {
 
   /** 現在の状態を返す。変更がない間は同じ参照を返すため、呼び出し側では書き換えない。 */
   getSnapshot = (): SerialSnapshot => this.snapshot;
+
+  /** 読み取り専用のポートも接続できるが、指示送信は書き込み可能な接続だけで行う。 */
+  get canWrite(): boolean {
+    return this.snapshot.status === 'connected' && this.session !== null
+      && !this.session.disconnectRequested && this.session.writer !== null;
+  }
+
+  /** 開いている接続の設定値。選択中・切断中・未接続では取得できない。 */
+  get baudRate(): number | null {
+    return this.snapshot.status === 'connected' && this.session && !this.session.disconnectRequested
+      ? this.session.baudRate : null;
+  }
+
+  /**
+   * 同じ接続の未送信指示を無効化する。停止指示はこの呼び出しの後に送る。
+   * すでにwriterへ渡した送信は取り消せないため、その完了後に停止指示が続く。
+   */
+  discardPendingWrites(): void {
+    if (this.session) this.session.writeGeneration++;
+  }
+
+  /**
+   * 1行の指示をLF付きで順番に送信する。完了はUSBへの書き込み完了であり、ESPの受領確認ではない。
+   * 接続をまたいで再送せず、切断時に未送信のキューを破棄する。
+   */
+  writeLine(command: string): Promise<void> {
+    if (typeof command !== 'string' || !command.trim() || /[\x00-\x1f\x7f]/.test(command)) {
+      return Promise.reject(new Error('シリアル指示は改行・制御文字を含まない1行で指定してください。'));
+    }
+    const bytes = new TextEncoder().encode(command + '\n');
+    if (bytes.byteLength > MAX_COMMAND_BYTES) {
+      return Promise.reject(new Error('シリアル指示が長すぎます。'));
+    }
+    const session = this.session;
+    if (!session || !this.canWrite) {
+      return Promise.reject(new Error('シリアル指示を送信できません。書き込み可能なポートに接続してください。'));
+    }
+    if (session.pendingWrites >= MAX_PENDING_WRITES) {
+      return Promise.reject(new Error('シリアル指示の送信待ちが多すぎます。'));
+    }
+    const generation = session.writeGeneration;
+    session.pendingWrites++;
+    const write = session.writeTail.then(async () => {
+      if (generation !== session.writeGeneration) {
+        throw new Error('取り消された未送信のシリアル指示を破棄しました。');
+      }
+      if (this.session !== session || session.disconnectRequested || !session.writer) {
+        throw new Error('接続が終了したため、未送信のシリアル指示を破棄しました。');
+      }
+      try {
+        await session.writer.write(bytes);
+        if (this.session !== session || session.disconnectRequested) {
+          throw new Error('シリアル指示の送信中に接続が終了しました。');
+        }
+      } catch (error) {
+        if (this.session === session && !session.disconnectRequested) {
+          this.update({ error: 'シリアルの送信中にエラーが発生しました。USB接続を確認して、再接続してください。' });
+          this.requestDisconnect(session);
+        }
+        throw error;
+      }
+    }).finally(() => { session.pendingWrites--; });
+    // キュー自身は失敗を処理し、呼び出し側には元の失敗を返す。
+    session.writeTail = write.catch(() => {});
+    return write;
+  }
 
   /** 以後の状態変更を同期通知する。初期状態は再送せず、返した関数で購読を解除する。 */
   subscribeState = (listener: (snapshot: SerialSnapshot) => void): (() => void) => {
@@ -86,7 +161,8 @@ export class SerialMonitor {
     }
 
     const session: SerialSession = {
-      disconnectRequested: false, reader: null, readerCancellation: null,
+      disconnectRequested: false, baudRate: null, reader: null, readerCancellation: null,
+      writer: null, writerCancellation: null, writeTail: Promise.resolve(), writeGeneration: 0, pendingWrites: 0,
       connectionReady: createCompletionSignal(), closed: createCompletionSignal(),
     };
     this.session = session;
@@ -111,15 +187,20 @@ export class SerialMonitor {
   async disconnect(): Promise<void> {
     const session = this.session;
     if (!session) return;
-    if (!session.disconnectRequested) {
-      session.disconnectRequested = true;
-      this.update({ status: 'disconnecting' });
-      if (session.reader) {
-        // USB 抜線後は cancel が失敗し得る。ロック解放は run の finally が担う。
-        session.readerCancellation = session.reader.cancel().catch(() => {});
-      }
-    }
+    this.requestDisconnect(session);
     await session.closed.promise;
+  }
+
+  private requestDisconnect(session: SerialSession): void {
+    session.disconnectRequested = true;
+    this.update({ status: 'disconnecting' });
+    if (session.reader && !session.readerCancellation) {
+      // USB 抜線後は cancel / abort が失敗し得る。ロック解放は run の finally が担う。
+      session.readerCancellation = session.reader.cancel().catch(() => {});
+    }
+    if (session.writer && !session.writerCancellation) {
+      session.writerCancellation = session.writer.abort().catch(() => {});
+    }
   }
 
   /** 表示ログだけを消去する。累計受信量・受信時刻・入力側の解析状態は維持する。 */
@@ -178,9 +259,11 @@ export class SerialMonitor {
       stage = 'open';
       await port.open({ baudRate });
       opened = true;
+      session.baudRate = baudRate;
       if (session.disconnectRequested) return;
       if (!port.readable) throw new Error('Readable stream unavailable');
       session.reader = port.readable.getReader();
+      if (port.writable) session.writer = port.writable.getWriter();
       decoder = new TextDecoder('utf-8');
       this.update({
         status: 'connected', text: '', bytesReceived: 0,
@@ -209,13 +292,18 @@ export class SerialMonitor {
         this.update({ error: messages[stage] });
       }
     } finally {
-      this.update({ status: 'disconnecting' });
+      // 自然な受信終了・抜線でも、この接続に残った送信を止める。
+      this.requestDisconnect(session);
       if (decoder) this.append(decoder.decode());
       // 通常切断・受信エラー・接続準備中の切断をここに集約する。
       // cancel → ロック解放 → close の順序を守り、各処理を一度だけ実行する。
       if (session.readerCancellation) await session.readerCancellation;
       session.reader?.releaseLock();
       session.reader = null;
+      if (session.writerCancellation) await session.writerCancellation;
+      await session.writeTail;
+      session.writer?.releaseLock();
+      session.writer = null;
       if (opened && port) {
         try {
           await port.close();

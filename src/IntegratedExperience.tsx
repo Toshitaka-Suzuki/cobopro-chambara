@@ -25,6 +25,7 @@ export function IntegratedExperience({ session, inputMode, sensor, audio, headin
   const sensorState = useSyncExternalStore(sensor.subscribeState, sensor.getSnapshot);
   const gameRef = useRef(snapshot.game);
   const receiveSword = useCallback(() => {
+    if (inputMode === 'esp') return;
     if (inputMode === 'sensor' && !sensor.getSnapshot().ready) return;
     session.action({ type: inputMode === 'sensor' ? 'contact' : 'swordClash' });
   }, [inputMode, sensor, session]);
@@ -71,7 +72,7 @@ export function IntegratedExperience({ session, inputMode, sensor, audio, headin
   }
   if (snapshot.phase === 'battle' || snapshot.phase === 'ending') {
     return <>
-      {snapshot.conversationMode === 'mock_silent' && <p className="integration-demo-banner">無音テスト中：BGMは鳴りません。パリイは設定された時間帯で判定します。</p>}
+      {snapshot.conversationMode === 'mock_silent' && <p className="integration-demo-banner">無音テスト中：BGMは鳴りません。{inputMode === 'esp' ? '音ずれの確認には、音声出力ありで起動してください。' : 'パリイは設定された時間帯で判定します。'}</p>}
       <GameView {...{ headingRef, audio, soundEnabled, onToggleSound, inputMode, sensor }}
         rhythmSupported={snapshot.rhythmSupported} rhythm={snapshot.rhythm} parryFeedback={snapshot.parryFeedback}
         integrated pendingParry={snapshot.pendingParry} onOpenSettings={() => {}}

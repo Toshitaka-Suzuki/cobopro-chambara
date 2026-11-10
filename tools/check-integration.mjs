@@ -41,12 +41,13 @@ async function until(predicate, label, timeout = 10_000) {
     await sleep(15);
   }
 }
-async function beginBattle() {
-  assert.equal(session.start(), true);
+async function beginBattle(difficulty = 'easy') {
+  assert.equal(session.start(difficulty), true);
   await until(() => session.getSnapshot().phase === 'countdown', '戦闘前会話の完了');
   assert.equal(session.getSnapshot().game.roundRemainingMs, 60_000);
   session.startBattle();
   await until(() => session.getSnapshot().phase === 'battle', '戦闘開始の完了通知');
+  assert.equal(session.getSnapshot().game.difficulty, difficulty);
 }
 try {
   await until(() => ready, 'Python起動');
@@ -54,8 +55,14 @@ try {
   await until(() => session.ready, '接続とstandby');
   assert.equal(session.getSnapshot().conversationMode, 'mock_silent');
   assert.equal(session.getSnapshot().rhythmSupported, true);
-  await beginBattle();
+  await beginBattle('normal');
   await until(() => projectRhythm(session.getSnapshot().rhythm, performance.now())?.untilMs > 500, '予告の受信');
+  assert.equal(session.getSnapshot().rhythm.stage, 'normal');
+  const missedTarget = session.getSnapshot().rhythm.beatsMs[3];
+  await until(() => session.getSnapshot().rhythm?.beatsMs[0] > missedTarget, '見逃した機会の終了と次の予告');
+  assert.equal(session.getSnapshot().game.phase, 'defend');
+  console.log('PASS: 無入力で機会が終了 → 次の予告を予約');
+  await until(() => projectRhythm(session.getSnapshot().rhythm, performance.now())?.beat === 2, '次の予告の2拍目');
   session.action({ type: 'swordClash' });
   await until(() => !session.getSnapshot().pendingParry, '早い入力の判定');
   assert.equal(session.getSnapshot().parryFeedback?.timing, 'early');
@@ -66,6 +73,7 @@ try {
     for (let attempt = 0; attempt < 8 && !succeeded; attempt++) {
       await until(() => session.getSnapshot().game.phase === 'defend', '次の受け');
       await until(() => projectRhythm(session.getSnapshot().rhythm, performance.now())?.untilMs > 200, '次の4拍の同期');
+      assert.equal(session.getSnapshot().rhythm.stage, 'normal');
       const cue = projectRhythm(session.getSnapshot().rhythm, performance.now());
       await sleep(Math.max(0, cue.untilMs));
       session.action({ type: 'swordClash' });
@@ -75,14 +83,18 @@ try {
     assert.equal(succeeded, true, 'BGMの有効区間で受け成功');
     assert.equal(session.getSnapshot().parryFeedback?.timing, 'on_time');
     await until(() => session.getSnapshot().game.phase === 'attack', '弱点点灯');
+    assert.equal(session.getSnapshot().game.difficulty, 'normal');
+    assert.ok(session.getSnapshot().game.attackRemainingMs > 5900);
+    assert.ok(session.getSnapshot().game.attackRemainingMs <= 6000);
     session.action({ type: 'hit', target: session.getSnapshot().game.target });
     assert.equal(session.getSnapshot().game.hp, count);
   }
   await until(() => session.getSnapshot().phase === 'complete', '勝利後の感想とstandby');
   assert.equal(session.getSnapshot().game.phase, 'win');
-  console.log('PASS: 会話 → 3段階のパリイと命中 → 勝利 → 感想 → 待機');
+  console.log('PASS: 難易度normalを保持 → 3回のパリイと命中 → 勝利 → 感想 → 待機');
 
-  await beginBattle();
+  await beginBattle('hard');
+  await until(() => session.getSnapshot().rhythm?.stage === 'hard', '次ゲームの難易度をhardへ変更');
   session.action({ type: 'balloon' });
   await until(() => session.getSnapshot().phase === 'complete', '敗北後の感想とstandby');
   assert.equal(session.getSnapshot().game.phase, 'lose');

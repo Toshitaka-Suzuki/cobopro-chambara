@@ -1,17 +1,17 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { INITIAL_GAME_STATE, transitionGame, transitionGameWithElapsed } from './game.ts';
-import type { GameAction } from './game.ts';
+import type { Difficulty, GameAction } from './game.ts';
 import { SerialMonitor } from './serial.ts';
 import { SENSOR_QUIET_PERIOD_MS, SwordSensorInput } from './swordSensor.ts';
 import { FakeSerialPort, waitUntil } from './testSupport/serial.ts';
 
-async function setup() {
+async function setup(difficulty: Difficulty = 'easy') {
   const port = new FakeSerialPort();
   const monitor = new SerialMonitor({ requestPort: async () => port });
   let nowMs = 0;
   const sensor = new SwordSensorInput(monitor, () => nowMs);
-  let game = transitionGame(INITIAL_GAME_STATE, { type: 'start' });
+  let game = transitionGame(INITIAL_GAME_STATE, { type: 'start', difficulty });
   let lastTickMs = 0;
   // useGameSessionと同じ入力経路。直前の経過時間を処理し、場面変更で古い入力を捨てる。
   const dispatch = (action: GameAction, elapsedMs = 0) => {
@@ -76,7 +76,7 @@ test('剣受けの連続信号が攻撃開始を越えても命中にせず、�
 });
 
 test('実際の受信経路で同じチャンクの重複を採用せず、接触だけで3命中して勝利する', async context => {
-  const setupGame = await setup();
+  const setupGame = await setup('hard');
   context.after(setupGame.dispose);
   const unsubscribe = setupGame.subscribeGame();
   context.after(unsubscribe);
@@ -87,6 +87,8 @@ test('実際の受信経路で同じチャンクの重複を採用せず、接�
     assert.equal(setupGame.game().hp, hp, 'one chunk cannot both defend and hit');
     setupGame.tick(900);
     assert.equal(setupGame.game().phase, 'attack');
+    assert.equal(setupGame.game().difficulty, 'hard');
+    assert.equal(setupGame.game().attackRemainingMs, 4000, '命中回数が増えても選択した難易度の時間を保つ');
     await setupGame.send('1\n');
     assert.equal(setupGame.game().hp, hp - 1);
     if (hp > 1) {

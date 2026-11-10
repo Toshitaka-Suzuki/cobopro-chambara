@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { INITIAL_GAME_STATE, getGameLevel, transitionGame, transitionGameWithElapsed } from './game.ts';
+import { INITIAL_GAME_STATE, getAttackWindowMs, transitionGame, transitionGameWithElapsed } from './game.ts';
 import type { GameState, GamePhase, TargetId } from './game.ts';
 
 // UIプレビュー用の状態生成は本番コードに持ち込まず、テストの準備に閉じ込める。
@@ -28,7 +28,7 @@ test('モックの受け入力は受けの場面で一度だけ成功になり�
   const success = transitionGame(defend, { type: 'swordClash', target: 2 });
   assert.equal(success.phase, 'success');
   assert.equal(success.hp, 3);
-  assert.equal(getGameLevel(success.hp), 1);
+  assert.equal(success.difficulty, 'easy');
   assert.equal(success.pendingTarget, 2);
   assert.equal(transitionGame(success, { type: 'swordClash', target: 0 }), success);
   const attack = transitionGame(success, { type: 'tick', elapsedMs: 900 });
@@ -144,7 +144,7 @@ test('受け成功と命中は別。3回の有効命中で勝利する', () => {
     assert.equal(game, once);
   }
   assert.equal(game.phase, 'win');
-  assert.equal(getGameLevel(game.hp), 3);
+  assert.equal(game.difficulty, 'easy');
 });
 test('暗い弱点と時間外の命中ではHPが減らない', () => {
   let game = attack(transitionGame(INITIAL_GAME_STATE, { type: 'start' }), 2);
@@ -164,7 +164,7 @@ test('一時停止中はタイマーと命中を受け付けない', () => {
   assert.equal(transitionGame(game, { type: 'hit', target: 1 }), paused);
   game = transitionGame(game, { type: 'resume' });
   assert.equal(game.attackRemainingMs, 8000);
-  assert.equal(getGameLevel(game.hp), 1);
+  assert.equal(game.difficulty, 'easy');
   assert.equal(transitionGame(game, { type: 'hit', target: 1 }).hp, 2);
 });
 test('受け失敗は敗北と区別し、紙風船の破損で敗北する', () => {
@@ -174,21 +174,41 @@ test('受け失敗は敗北と区別し、紙風船の破損で敗北する', ()
   assert.equal(missed.hp, 3);
   assert.equal(transitionGame(missed, { type: 'balloon' }).phase, 'lose');
 });
-test('ダメージ後に難易度が上がり、時間切れだけでは上がらない', () => {
-  let game = attack(transitionGame(INITIAL_GAME_STATE, { type: 'start' }));
-  assert.equal(game.attackRemainingMs, 8000);
-  game = transitionGame(game, { type: 'tick', elapsedMs: 8000 });
-  game = attack(game);
-  assert.equal(game.attackRemainingMs, 8000);
-  assert.equal(getGameLevel(game.hp), 1);
-  game = transitionGame(game, { type: 'hit', target: 1 });
-  game = attack(game);
-  assert.equal(game.attackRemainingMs, 6000);
-  assert.equal(getGameLevel(game.hp), 2);
-  game = transitionGame(game, { type: 'hit', target: 1 });
+test('開始前に選んだ難易度で攻撃時間を決め、失敗や命中の後も同じ時間を保つ', () => {
+  for (const [difficulty, windowMs] of [['easy', 8000], ['normal', 6000], ['hard', 4000]] as const) {
+    let game = attack(transitionGame(INITIAL_GAME_STATE, { type: 'start', difficulty }));
+    assert.equal(getAttackWindowMs(difficulty), windowMs);
+    assert.equal(game.attackRemainingMs, windowMs);
+    game = transitionGame(game, { type: 'tick', elapsedMs: windowMs });
+    assert.equal(game.phase, 'miss');
+    for (let hp = 3; hp > 0; hp--) {
+      game = attack(game);
+      assert.equal(game.hp, hp);
+      assert.equal(game.difficulty, difficulty);
+      assert.equal(game.attackRemainingMs, windowMs, `${difficulty}: HP${hp}でも受付時間は一定`);
+      game = transitionGame(game, { type: 'hit', target: 1 });
+      assert.equal(game.difficulty, difficulty);
+    }
+    assert.equal(game.phase, 'win');
+  }
+});
+
+test('難易度は新しいゲーム開始時だけ変えられ、停止と再開でも選択を保持する', () => {
+  let game = transitionGame(INITIAL_GAME_STATE, { type: 'start', difficulty: 'hard' });
+  assert.equal(game.difficulty, 'hard');
+  assert.equal(transitionGame(game, { type: 'start', difficulty: 'easy' }), game);
   game = attack(game);
   assert.equal(game.attackRemainingMs, 4000);
-  assert.equal(getGameLevel(game.hp), 3);
+  const saved = transitionGame(game, { type: 'pause' });
+  assert.equal(transitionGame(saved, { type: 'start', difficulty: 'normal' }), saved);
+  const resumed = transitionGame(saved, { type: 'resume' });
+  assert.equal(resumed.difficulty, 'hard');
+  assert.equal(resumed.attackRemainingMs, 4000);
+  const finished = transitionGame(resumed, { type: 'balloon' });
+  const restarted = transitionGame(finished, { type: 'start', difficulty: 'normal' });
+  assert.equal(restarted.difficulty, 'normal');
+  assert.equal(attack(restarted).attackRemainingMs, 6000);
+  assert.equal(transitionGame(finished, { type: 'start' }).difficulty, 'easy');
 });
 test('開始前は命中・受け入力では進まない', () => {
   assert.equal(transitionGame(INITIAL_GAME_STATE, { type: 'hit', target: 1 }), INITIAL_GAME_STATE);

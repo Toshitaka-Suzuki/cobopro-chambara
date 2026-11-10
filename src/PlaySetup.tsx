@@ -3,6 +3,8 @@ import type { SwordSensorSnapshot } from './swordSensor';
 import { INPUT_MODE_LABELS } from './inputMode';
 import type { InputMode } from './inputMode';
 import type { ExperienceMode } from './integratedSession';
+import { DIFFICULTIES, DIFFICULTY_LABELS, getAttackWindowMs } from './game';
+import type { Difficulty } from './game';
 
 type PlaySetupProps = {
   headingRef: Ref<HTMLHeadingElement>;
@@ -13,14 +15,21 @@ type PlaySetupProps = {
   onStart: () => void;
   experienceMode: ExperienceMode;
   onExperienceModeChange: (mode: ExperienceMode) => void;
+  difficulty: Difficulty;
+  onDifficultyChange: (difficulty: Difficulty) => void;
   integrationReady: boolean;
   connectionControls: ReactNode;
+  espReady: boolean;
+  espControls: ReactNode;
 };
 
 export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, notice, onStart,
-  experienceMode, onExperienceModeChange, integrationReady, connectionControls }: PlaySetupProps) {
+  experienceMode, onExperienceModeChange, difficulty, onDifficultyChange, integrationReady, connectionControls,
+  espReady, espControls }: PlaySetupProps) {
   const integrated = experienceMode === 'integrated';
-  const canStart = (inputMode === 'mock' || sensorState.ready) && (!integrated || integrationReady);
+  const esp = integrated && inputMode === 'esp';
+  const inputReady = inputMode === 'mock' || (inputMode === 'sensor' && sensorState.ready) || (esp && espReady);
+  const canStart = inputReady && (!integrated || integrationReady);
   return (
     <main className="setup-screen">
       <nav className="setup-navigation" aria-label="画面移動">
@@ -31,7 +40,7 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
         <header className="setup-heading">
           <p className="setup-kicker">ロボットと、チャンバラ。</p>
           <h1 ref={headingRef} tabIndex={-1}>プレイの準備</h1>
-          <p>遊び方と入力方法を選んで、ゲームを始めましょう。</p>
+          <p>遊び方・難易度・入力方法を選んで、ゲームを始めましょう。</p>
         </header>
 
         <fieldset className="input-mode-picker">
@@ -47,6 +56,19 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
         </fieldset>
         {integrated && connectionControls}
 
+        <fieldset className="input-mode-picker difficulty-picker">
+          <legend>難易度</legend>
+          {DIFFICULTIES.map(option => <label key={option} className={`input-mode-choice${difficulty === option ? ' is-selected' : ''}`}>
+            <input type="radio" name="difficulty" value={option} checked={difficulty === option} onChange={() => onDifficultyChange(option)} />
+            <span><strong>{DIFFICULTY_LABELS[option]}</strong><small>
+              {integrated && `${option === 'easy' ? 'ゆっくり' : option === 'normal' ? '標準の速さ' : 'はやい'} ／ `}
+              攻撃チャンス {esp ? 10 : getAttackWindowMs(option) / 1000}秒
+            </small></span>
+          </label>)}
+          <p className="difficulty-help">この難易度で最後まで遊びます。命中しても難しくなりません。</p>
+          {esp && <p className="difficulty-help">ESP連携では現行機器に合わせ、弱点Aの有効時間は全難易度で10秒です。</p>}
+        </fieldset>
+
         <fieldset className="input-mode-picker">
           <legend>入力方法</legend>
           <label className={inputMode === 'mock' ? 'input-mode-choice is-selected' : 'input-mode-choice'}>
@@ -57,6 +79,10 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
             <input type="radio" name="input-mode" value="sensor" checked={inputMode === 'sensor'} onChange={() => onModeChange('sensor')} />
             <span><strong>{INPUT_MODE_LABELS.sensor}</strong><small>USBの信号で受けと命中を判定</small></span>
           </label>
+          {integrated && <label className={esp ? 'input-mode-choice is-selected' : 'input-mode-choice'}>
+            <input type="radio" name="input-mode" value="esp" checked={esp} onChange={() => onModeChange('esp')} />
+            <span><strong>{INPUT_MODE_LABELS.esp}</strong><small>XIAO経由で予告と判定を連携。機器の成功通知で進行</small></span>
+          </label>}
         </fieldset>
 
         {notice && <p className="setup-notice" role="alert">{notice}</p>}
@@ -69,7 +95,7 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
               {sensorState.connected && <p>USB接続は保持中です。このモードではゲームの入力に使いません。</p>}
             </div>
           </section>
-        ) : (
+        ) : esp ? espControls : inputMode === 'sensor' ? (
           <div className="sensor-preparation">
             <section className={`setup-input-check${sensorState.ready ? ' is-ready' : ''}`} aria-label="センサ入力の確認">
               <span className="setup-check-mark" aria-hidden="true">{sensorState.ready ? '✓' : '…'}</span>
@@ -81,7 +107,7 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
             </section>
             <p className="setup-assistance">{integrated ? '受け待ちの信号をBGMのタイミングで判定します。' : '受け待ちの信号でパリィ成功とします。'}ランプ点灯中の信号は命中とします。叩いたランプの色は、今は判定しません。次の受け待ちへは自動で進みます。</p>
           </div>
-        )}
+        ) : <p className="setup-notice">ESP連携は「会話・BGM連携」で使用できます。</p>}
 
         <div className="start-game-area">
           <button className="start-game-button" disabled={!canStart} onClick={onStart} aria-describedby="start-game-hint">
@@ -89,7 +115,8 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
           </button>
           <p id="start-game-hint">{integrated && !integrationReady ? '統合アプリに接続して、準備完了になるまでお待ちください。'
             : canStart ? integrated ? 'まず作戦を話しましょう。会話の後、カウントダウンで対戦が始まります。'
-              : '3秒のカウントダウン後に始まります。' : '管理画面で接続と入力を確認すると、開始できます。'}</p>
+              : '3秒のカウントダウン後に始まります。' : esp ? '上の接続状態を確認し、ESP対応の統合アプリとXIAOに接続してください。'
+                : '管理画面で接続と入力を確認すると、開始できます。'}</p>
         </div>
         {inputMode === 'sensor' && <p className="setup-assistance">画面移動やモックへの切り替えでも接続を保ちます。USBを抜く・切断する・ページを再読み込みした場合は、再接続が必要です。</p>}
       </div>

@@ -39,7 +39,7 @@ export function IntegrationConnection({ session }: { session: IntegratedSession 
     </form>
     <p id="integration-url-help">統合アプリを先に起動してください。別のPCなら、そのPCのIPアドレスを指定します。</p>
     <p>会話とBGMは統合アプリのPCで再生します。マイクもそのPCに接続します。</p>
-    {snapshot.rhythmSupported && <p>タン・タン・タン・カン！ 3つの音で構えて、最後の高い音で受けます。画面の輪も同時に重なります。</p>}
+    {snapshot.rhythmSupported && <p>予告が始まるまでの待ち時間はランダムです。タン・タン・タン・カン！ 3つの音で構えて、最後の高い音で受けます。</p>}
     {busy && snapshot.conversationMode !== 'live' && <p className="integration-demo" role="status">
       {snapshot.conversationMode === 'mock_silent'
         ? '会話・BGM出力を模擬する無音テストです。' : '会話は模擬モードです。BGMとパリイ判定は実際に動作します。'}

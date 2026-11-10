@@ -34,6 +34,31 @@ export class FakeSerialPort implements SerialPortApi {
   }
 }
 
+/** 読み取り専用の既存テストを保ち、送信・中断だけを追加で再現する。 */
+export class FakeWritableSerialPort extends FakeSerialPort {
+  writable: WritableStream<Uint8Array>;
+  writes: string[] = [];
+  writeGate: Promise<void> | null = null;
+  writeError: Error | null = null;
+
+  constructor() {
+    super();
+    this.writable = new WritableStream<Uint8Array>({
+      write: async (bytes) => {
+        this.writes.push(new TextDecoder().decode(bytes));
+        if (this.writeGate) await this.writeGate;
+        if (this.writeError) throw this.writeError;
+      },
+      abort: () => { this.events.push('abort-write'); },
+    });
+  }
+
+  override async close() {
+    assert.equal(this.writable.locked, false, 'release the writer before closing');
+    await super.close();
+  }
+}
+
 // 固定時間を待たずに非同期の受信ループを進め、未到達ならテストを終了する。
 export async function waitUntil(predicate: () => boolean) {
   for (let attempts = 0; attempts < 100; attempts++) {

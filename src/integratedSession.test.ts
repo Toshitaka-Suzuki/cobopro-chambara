@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { IntegratedSession, appUrlError } from './integratedSession.ts';
 import type { AppSocket } from './integratedSession.ts';
+import type { Difficulty } from './game.ts';
 
 class Socket implements AppSocket {
   onopen: WebSocket['onopen'] = null;
   onmessage: WebSocket['onmessage'] = null;
   onerror: WebSocket['onerror'] = null;
   onclose: WebSocket['onclose'] = null;
-  sent: { name: string; request_id: string; count?: number }[] = [];
+  sent: { name: string; request_id: string; count?: number; difficulty?: Difficulty }[] = [];
   closed = false;
   send(raw: string) { this.sent.push(JSON.parse(raw)); }
   close() { this.closed = true; }
@@ -30,11 +31,11 @@ function fixture(mode: 'live' | 'mock' | 'mock_silent' = 'mock') {
   });
   session.connect('ws://localhost:8765');
   const socket = sockets[0];
-  socket.receive({ type: 'connected', protocol_version: 2, conversation_mode: mode });
+  socket.receive({ type: 'connected', protocol_version: 3, conversation_mode: mode });
   socket.status('standby');
   const advance = (ms: number) => { now += ms; session.tick(); };
-  const battle = () => {
-    assert.equal(session.start(), true);
+  const battle = (difficulty: Difficulty = 'easy') => {
+    assert.equal(session.start(difficulty), true);
     socket.ack();
     socket.status('pre_interview');
     socket.status('pre_interview_finished');
@@ -56,6 +57,53 @@ function interviewFixture() {
 function progress(socket: Socket, event: Record<string, unknown>) {
   socket.receive({ type: 'conversation_progress', phase: 'strategy', ...event });
 }
+
+test('選択した難易度を開始時に送り、3回の攻撃チャンスを同じ長さに保つ', () => {
+  for (const [difficulty, attackMs] of [['easy', 8000], ['normal', 6000], ['hard', 4000]] as const) {
+    const { session, socket, advance, battle } = fixture();
+    battle(difficulty);
+    assert.equal(socket.sent.find(message => message.name === 'game_start')?.difficulty, difficulty);
+    assert.equal(session.getSnapshot().game.difficulty, difficulty);
+    assert.equal(session.start('easy'), false);
+    for (let remaining = 2; remaining >= 0; remaining--) {
+      session.action({ type: 'contact' });
+      const request = socket.ack();
+      socket.receive({ type: 'parry_result', request_id: request.request_id, value: 'success' });
+      advance(900);
+      assert.equal(session.getSnapshot().game.attackRemainingMs, attackMs);
+      session.action({ type: 'contact' });
+      socket.ack();
+      assert.equal(session.getSnapshot().game.hp, remaining);
+      assert.equal(session.getSnapshot().game.difficulty, difficulty);
+      if (remaining) {
+        advance(2400);
+        if (socket.sent.at(-1)?.name === 'heartbeat') socket.ack();
+      }
+    }
+    assert.equal(session.getSnapshot().game.phase, 'win');
+    session.disconnect();
+  }
+});
+
+test('中断後の新しいゲームでは難易度を選び直せる', () => {
+  const { session, socket, battle } = fixture();
+  battle('hard');
+  session.cancel();
+  socket.ack();
+  socket.status('standby');
+  battle('normal');
+  assert.equal(session.getSnapshot().game.difficulty, 'normal');
+  assert.deepEqual(socket.sent.filter(message => message.name === 'game_start').map(message => message.difficulty), ['hard', 'normal']);
+});
+
+test('難易度固定に未対応のv2サーバーでは開始せず更新を案内する', () => {
+  const { session, socket } = fixture();
+  socket.receive({ type: 'connected', protocol_version: 2 });
+  socket.status('standby');
+  assert.equal(session.ready, false);
+  assert.equal(session.start('hard'), false);
+  assert.match(session.getSnapshot().error, /更新.*v3/);
+});
 
 test('会話・カウントダウン・BGM開始確認中はゲームの時計を進めない', () => {
   const { session, socket, advance } = fixture();
@@ -215,7 +263,7 @@ test('古い統合アプリ・不正JSON・不正URLを表示し、開始を許�
   const { session, sockets } = fixture();
   session.connect('ws://localhost:8765');
   sockets[1].receive({ type: 'connected' });
-  assert.match(session.getSnapshot().error, /v2/);
+  assert.match(session.getSnapshot().error, /v3/);
   assert.equal(session.start(), false);
   session.connect('ws://localhost:8765');
   sockets[2].onmessage!.call(sockets[2] as unknown as WebSocket, { data: '{' } as MessageEvent);
@@ -242,7 +290,7 @@ test('開始前会話のスキップでも、カウントダウンとBGM開始�
 
 test('音楽同期を対応サーバーだけに要求し、早い判定と次の4拍への再準備を伝える', () => {
   const { session, socket, battle, advance } = fixture();
-  socket.receive({ type: 'connected', protocol_version: 2, rhythm_guide: true });
+  socket.receive({ type: 'connected', protocol_version: 3, rhythm_guide: true });
   battle();
   advance(50);
   const sync = socket.sent.at(-1)!;
@@ -268,9 +316,9 @@ test('音楽同期を対応サーバーだけに要求し、早い判定と次�
   assert.equal(session.getSnapshot().rhythm, null);
 });
 
-test('命中による曲の変更後は古い同期応答を表示しない', () => {
+test('命中して攻撃が終わった後は古い同期応答を表示しない', () => {
   const { session, socket, battle, advance } = fixture();
-  socket.receive({ type: 'connected', protocol_version: 2, rhythm_guide: true });
+  socket.receive({ type: 'connected', protocol_version: 3, rhythm_guide: true });
   battle();
   session.action({ type: 'swordClash' });
   const parry = socket.sent.at(-1)!;
@@ -400,7 +448,7 @@ test('会話中断と切断で発言を消し、古い接続の進捗を新し�
   session.connect('ws://localhost:8765');
   assert.equal(session.getSnapshot().conversation, null);
   const replacement = sockets[1];
-  replacement.receive({ type: 'connected', protocol_version: 2, conversation_mode: 'live' });
+  replacement.receive({ type: 'connected', protocol_version: 3, conversation_mode: 'live' });
   replacement.status('standby');
   session.start();
   replacement.ack();
