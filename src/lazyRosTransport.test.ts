@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { lazyRosTransportFactory } from './lazyRosTransport.ts';
-import type { RosTransportFactory } from './ros.ts';
+import type { RosQos, RosTransportFactory } from './ros.ts';
 
 const flush = () => new Promise<void>(resolve => setImmediate(resolve));
 
@@ -45,4 +45,31 @@ test('load failures are reported and a later connection can retry', async () => 
   assert.deepEqual(await second.request('/test', { value: 1 }, { signal: new AbortController().signal, timeoutMs: 100 }), { value: 1 });
   second.close();
   assert.equal(closed, 1);
+});
+
+test('lazy transports forward control QoS and publishers only after loading', async () => {
+  const qos: RosQos = { history: 'keep_last', depth: 10, reliability: 'reliable', durability: 'volatile' };
+  const received: unknown[] = [];
+  const subscriptionOptions = { throttleRateMs: 0, queueLength: 10, qos };
+  const factory = lazyRosTransportFactory(async () => ({ createRoslibTransport: () => ({
+    close() {}, request: async () => ({}),
+    subscribe(topic, type, _message, _error, options) { received.push({ topic, type, options }); return () => {}; },
+    advertise(topic, type, settings) {
+      received.push({ topic, type, qos: settings });
+      return { publish: message => { received.push(message); }, close() {} };
+    },
+  }) }));
+  const transport = factory('ws://localhost:9090', { onOpen() {}, onClose() {}, onError: error => assert.fail(error.message) });
+  assert.throws(() => transport.advertise!('/command', 'std_msgs/msg/String', qos, () => {}), /準備/);
+  await flush();
+  transport.subscribe('/status', 'std_msgs/msg/String', () => {}, () => {}, subscriptionOptions);
+  const publisher = transport.advertise!('/command', 'std_msgs/msg/String', qos, () => {});
+  publisher.publish({ data: 'start session 1' });
+  assert.deepEqual(received, [
+    { topic: '/status', type: 'std_msgs/msg/String', options: subscriptionOptions },
+    { topic: '/command', type: 'std_msgs/msg/String', qos },
+    { data: 'start session 1' },
+  ]);
+  transport.close();
+  assert.throws(() => transport.advertise!('/command', 'std_msgs/msg/String', qos, () => {}), /準備/);
 });

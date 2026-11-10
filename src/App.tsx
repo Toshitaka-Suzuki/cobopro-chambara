@@ -20,6 +20,10 @@ import { IntegrationConnection } from './IntegrationConnection';
 import { IntegratedExperience } from './IntegratedExperience';
 import { LegacyEspController } from './legacyEsp';
 import { EspConnection } from './EspConnection';
+import { RobotBattleController } from './robotBattle';
+import { RobotGameLink } from './robotGameLink';
+import { RobotConnection, RobotBattleStatus } from './RobotConnection';
+import type { InputMode } from './inputMode';
 
 export function App() {
   const [baudRate, setBaudRate] = useState('115200');
@@ -27,6 +31,10 @@ export function App() {
   // 接続はアプリが所有し、管理画面とプレイ画面を行き来しても維持する。
   const [rosMonitor] = useState(() => new RosMonitor(createLazyRosTransport));
   const [integration] = useState(() => new IntegratedSession());
+  const [robot] = useState(() => new RobotBattleController(rosMonitor));
+  const [robotLink] = useState(() => new RobotGameLink(robot, integration));
+  const robotState = useSyncExternalStore(robot.subscribe, robot.getSnapshot);
+  const robotLinkState = useSyncExternalStore(robotLink.subscribe, robotLink.getSnapshot);
   const [experienceMode, setExperienceMode] = useState<ExperienceMode>('integrated');
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const integrationState = useSyncExternalStore(integration.subscribe, integration.getSnapshot);
@@ -47,12 +55,16 @@ export function App() {
   useEffect(() => {
     sensor.start();
     esp.start();
+    robot.start();
+    robotLink.start();
     return () => {
+      robotLink.stop();
+      robot.stop();
       esp.stop();
       sensor.stop();
       void serialMonitor.disconnect();
     };
-  }, [serialMonitor, sensor, esp]);
+  }, [serialMonitor, sensor, esp, robot, robotLink]);
 
   useEffect(() => {
     const engine = new GameAudio();
@@ -69,10 +81,23 @@ export function App() {
     }
   }, [screen, integration]);
   useEffect(() => {
-    const leave = () => integration.disconnect();
+    const leave = () => {
+      if (robotLink.getSnapshot().active || robot.getSnapshot().busy) robotLink.abort('ページを離れたため、ロボット連動を中断しました。');
+      integration.disconnect();
+      rosMonitor.disconnect();
+    };
+    const visibility = () => {
+      if (document.hidden && (robotLink.getSnapshot().active || robot.getSnapshot().busy)) {
+        robotLink.abort('画面が非表示になったため、ロボット連動を中断しました。画面を前面にして、機器の状態を確認してください。');
+      }
+    };
     window.addEventListener('pagehide', leave);
-    return () => window.removeEventListener('pagehide', leave);
-  }, [integration]);
+    document.addEventListener('visibilitychange', visibility);
+    return () => {
+      window.removeEventListener('pagehide', leave);
+      document.removeEventListener('visibilitychange', visibility);
+    };
+  }, [integration, robot, robotLink, rosMonitor]);
 
   useEffect(() => {
     document.title = `${title} | ロボットと、チャンバラ。`;
@@ -89,6 +114,7 @@ export function App() {
     if (experienceMode === 'integrated' && !integration.ready) return;
     if (inputMode === 'esp' && (experienceMode !== 'integrated' || !esp.getSnapshot().ready
       || !integrationState.espSupported || !integrationState.rhythmSupported)) return;
+    if (robotLink.getSnapshot().enabled && (inputMode !== 'esp' || !robot.getSnapshot().canStart)) return;
     audio.setMuted(!soundEnabled);
     // ブラウザーの音声制限を解除するため、開始クリックの中で呼ぶ。
     void audio.unlock().catch(() => {
@@ -96,13 +122,19 @@ export function App() {
       setSoundEnabled(false);
     });
     if (experienceMode === 'integrated') {
-      if (inputMode === 'esp' ? esp.startGame(difficulty) : integration.start(difficulty)) session.startIntegrated();
+      if (robotLink.beginGame(() => inputMode === 'esp' ? esp.startGame(difficulty) : integration.start(difficulty))) session.startIntegrated();
     } else session.startCountdown();
   };
 
   const changeExperienceMode = (mode: ExperienceMode) => {
+    if (mode === 'standalone' && robotLink.getSnapshot().enabled && !robotLink.setEnabled(false)) return;
     if (mode === 'standalone' && inputMode === 'esp') session.changeInputMode('mock');
     setExperienceMode(mode);
+  };
+
+  const changeInputMode = (mode: InputMode) => {
+    if (mode !== 'esp' && robotLink.getSnapshot().enabled && !robotLink.setEnabled(false)) return;
+    session.changeInputMode(mode);
   };
 
   const toggleSound = async () => {
@@ -124,19 +156,32 @@ export function App() {
 
   if (screen === 'play') {
     return <PlaySetup headingRef={headingRef} inputMode={inputMode} sensorState={sensorState}
-      notice={session.notice} onModeChange={session.changeInputMode} onStart={startGame}
+      notice={session.notice || robotLinkState.error} onModeChange={changeInputMode} onStart={startGame}
       experienceMode={experienceMode} onExperienceModeChange={changeExperienceMode}
       difficulty={difficulty} onDifficultyChange={setDifficulty}
       integrationReady={integrationState.connection === 'connected' && integration.ready}
       espReady={espState.ready && integrationState.espSupported && integrationState.rhythmSupported}
       espControls={<EspConnection controller={esp} monitor={serialMonitor} supported={serialSupported} session={integration} />}
+      robotReady={!robotState.busy && (!robotLinkState.enabled || (!robotLinkState.active && robotState.canStart))}
+      robotHint={robotState.error || (robotState.busy ? 'ロボットの停止・復帰を確認しています。準備完了までお待ちください。' : 'ROSに接続し、ロボットの新しい状態通知と準備完了を確認してください。')}
+      robotControls={<>
+        <RobotConnection monitor={rosMonitor} robot={robot} enabled={robotLinkState.enabled}
+          onEnabledChange={robotLink.setEnabled} locked={robotLinkState.active || integration.active}
+          eligible={experienceMode === 'integrated' && inputMode === 'esp'} />
+        {robotState.busy && <RobotBattleStatus robot={robot} onAbort={() => robotLink.abort()} />}
+      </>}
       connectionControls={<IntegrationConnection session={integration} />} />;
   }
 
   if (screen === 'integrated' && audio) {
-    return <IntegratedExperience session={integration} inputMode={inputMode} sensor={sensor}
+    return <>
+      {robotLinkState.enabled && <RobotBattleStatus robot={robot} onAbort={() => robotLink.abort()} />}
+      <IntegratedExperience session={integration} inputMode={inputMode} sensor={sensor}
       audio={audio} headingRef={headingRef} soundEnabled={soundEnabled}
-      onToggleSound={() => { void toggleSound(); }} />;
+      onStartBattle={robotLink.startBattle} waitingForRobot={robotLinkState.waitingForRobot}
+      robotReturning={robotState.busy}
+      onToggleSound={() => { void toggleSound(); }} />
+    </>;
   }
   if (screen === 'countdown' && audio) {
     return <Countdown headingRef={headingRef} onComplete={session.finishCountdown} audio={audio} inputMode={inputMode} />;
@@ -150,11 +195,14 @@ export function App() {
   }
 
   if (screen === 'admin') {
-    return <AdminScreen headingRef={headingRef} monitor={serialMonitor} rosMonitor={rosMonitor}
+    return <>
+      {robotState.busy && <RobotBattleStatus robot={robot} onAbort={() => robotLink.abort()} />}
+      <AdminScreen headingRef={headingRef} monitor={serialMonitor} rosMonitor={rosMonitor}
       connectionControls={<SerialConnection monitor={serialMonitor} supported={serialSupported}
         baudRate={baudRate} customBaudRate={customBaudRate}
         onBaudRateChange={setBaudRate} onCustomBaudRateChange={setCustomBaudRate} />}
-      sensorState={sensorState} resumeGameHref={session.canResumeGame ? SCREEN_HASHES.game : undefined} />;
+      sensorState={sensorState} resumeGameHref={session.canResumeGame ? SCREEN_HASHES.game : undefined} />
+    </>;
   }
 
   if (screen !== 'home') {
@@ -170,5 +218,8 @@ export function App() {
     );
   }
 
-  return <HomeScreen headingRef={headingRef} serialConnected={sensorState.connected} />;
+  return <>
+    {robotState.busy && <RobotBattleStatus robot={robot} onAbort={() => robotLink.abort()} />}
+    <HomeScreen headingRef={headingRef} serialConnected={sensorState.connected} />
+  </>;
 }

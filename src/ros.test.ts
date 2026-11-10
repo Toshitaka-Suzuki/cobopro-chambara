@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { RosMonitor, type RosTransport, type RosTransportFactory } from './ros.ts';
+import { RosMonitor, type RosQos, type RosTransport, type RosTransportFactory } from './ros.ts';
 
 function deferred<T = unknown>() {
   let resolve!: (value: T) => void;
@@ -340,4 +340,97 @@ test('removing the selected service aborts metadata but preserves an already dis
   await calling;
   assert.equal(f.monitor.getSnapshot().call.status, 'response');
   assert.equal(f.monitor.getSnapshot().call.service, '/start');
+});
+
+test('independent status watches survive inspector navigation but never survive disconnection', async (t) => {
+  const f = fixture();
+  t.after(() => f.monitor.disconnect());
+  const messages: unknown[] = [];
+  assert.throws(() => f.monitor.watchTopic('/battle/status', 'std_msgs/msg/String', () => {}, () => {}), /接続/);
+  const old = await f.open();
+  const stop = f.monitor.watchTopic('/battle/status', 'std_msgs/msg/String', value => messages.push(value), error => assert.fail(error.message));
+  const control = old.subscriptions[0];
+  f.monitor.selectTopic('/accel');
+  f.monitor.startTopic();
+  f.monitor.stopTopic();
+  assert.equal(control.stopped, false);
+  control.message({ data: 'standby' });
+  assert.deepEqual(messages, [{ data: 'standby' }]);
+  f.monitor.disconnect();
+  assert.equal(control.stopped, true);
+  control.message({ data: 'stale' });
+  const fresh = await f.open();
+  control.message({ data: 'stale after reconnect' });
+  stop();
+  assert.equal(fresh.subscriptions.length, 0);
+  assert.equal(messages.length, 1);
+});
+
+test('independent watch errors stop that watch without stopping the inspector', async (t) => {
+  const f = fixture();
+  t.after(() => f.monitor.disconnect());
+  const connection = await f.open();
+  const errors: Error[] = [];
+  f.monitor.watchTopic('/battle/status', 'std_msgs/msg/String', () => assert.fail('stopped watch'), error => errors.push(error));
+  f.monitor.selectTopic('/accel');
+  f.monitor.startTopic();
+  connection.subscriptions[0].error(new Error('bad status type'));
+  connection.subscriptions[0].message({ data: 'ignored' });
+  connection.subscriptions[1].message({ x: 1 });
+  assert.equal(errors.length, 1);
+  assert.equal(connection.subscriptions[0].stopped, true);
+  assert.equal(f.monitor.getSnapshot().topic.receivedCount, 1);
+});
+
+test('publisher handles are scoped to one connection and reject use after close or errors', async (t) => {
+  const qos: RosQos = { history: 'keep_last', depth: 10, reliability: 'reliable', durability: 'volatile' };
+  const connections: Array<{ handlers: Parameters<RosTransportFactory>[1]; publishers: Array<{
+    topic: string; type: string; qos: RosQos; error: (error: Error) => void; messages: unknown[]; closeCount: number;
+  }> }> = [];
+  const monitor = new RosMonitor((_url, handlers) => {
+    const connection = { handlers, publishers: [] as typeof connections[number]['publishers'] };
+    connections.push(connection);
+    return {
+      close() {}, subscribe: () => () => {},
+      request: async service => service === '/rosapi/topics' ? { topics: [], types: [] } : { services: [] },
+      advertise(topic, type, settings, error) {
+        const publisher = { topic, type, qos: settings, error, messages: [] as unknown[], closeCount: 0 };
+        connection.publishers.push(publisher);
+        return { publish: message => { publisher.messages.push(message); }, close: () => { publisher.closeCount++; } };
+      },
+    };
+  });
+  t.after(() => monitor.disconnect());
+  assert.throws(() => monitor.createPublisher('/command', 'std_msgs/msg/String', qos, () => {}), /接続/);
+  monitor.connect('ws://localhost:9090');
+  connections[0].handlers.onOpen();
+  const errors: Error[] = [];
+  const old = monitor.createPublisher('/command', 'std_msgs/msg/String', qos, error => errors.push(error));
+  old.publish({ data: 'start session 1' });
+  monitor.stopTopic();
+  old.publish({ data: 'finish session 1 0' });
+  monitor.disconnect();
+  assert.equal(connections[0].publishers[0].closeCount, 1);
+  monitor.connect('ws://localhost:9090');
+  connections[1].handlers.onOpen();
+  assert.throws(() => old.publish({ data: 'stale command' }), /終了/);
+  old.close();
+  connections[0].publishers[0].error(new Error('stale failure'));
+  assert.equal(errors.length, 0);
+  assert.equal(connections[1].publishers.length, 0);
+  const fresh = monitor.createPublisher('/command', 'std_msgs/msg/String', qos, error => errors.push(error));
+  connections[1].publishers[0].error(new Error('rejected'));
+  assert.throws(() => fresh.publish({ data: 'retry' }), /終了/);
+  fresh.close();
+  assert.equal(connections[1].publishers[0].closeCount, 1);
+  assert.equal(errors.length, 1);
+});
+
+test('read-only transports report missing publication support before sending', async (t) => {
+  const f = fixture();
+  t.after(() => f.monitor.disconnect());
+  await f.open();
+  assert.throws(() => f.monitor.createPublisher('/command', 'std_msgs/msg/String', {
+    history: 'keep_last', depth: 10, reliability: 'reliable', durability: 'volatile',
+  }, () => {}), /対応していません/);
 });

@@ -9,7 +9,7 @@ import {
   type ITransportFactory,
   type RosbridgeMessage,
 } from 'roslib';
-import type { RosTransportFactory } from './ros.ts';
+import type { RosQos, RosTransportFactory } from './ros.ts';
 
 function namedError(name: string, message: string): Error {
   const error = new Error(message);
@@ -24,6 +24,13 @@ function disconnectedError(): Error {
 function asError(value: unknown): Error {
   if (value instanceof Error) return value;
   return new Error(typeof value === 'string' ? value : 'rosbridge に接続できませんでした。URL と接続先を確認してください。');
+}
+
+function copyQos(qos: RosQos): RosQos {
+  if (qos.history !== 'keep_last' || qos.reliability !== 'reliable'
+    || !['volatile', 'transient_local'].includes(qos.durability)
+    || !Number.isSafeInteger(qos.depth) || qos.depth < 1) throw new Error('ROSのQoS設定が不正です。');
+  return { ...qos };
 }
 
 // WebSocket の生成は非同期なので、切断要求後に生成された接続も閉じる。
@@ -92,6 +99,7 @@ export function createRoslibTransportFactory(
     let requestId = 0;
     const pendingRequestFailures = new Set<(error: Error) => void>();
     const subscriptionStops = new Set<() => void>();
+    const publisherStops = new Set<() => void>();
     const ros = new NonQueuingRos(async (endpoint) => {
       if (closed) throw disconnectedError();
       const source = await transportFactory(endpoint);
@@ -112,6 +120,7 @@ export function createRoslibTransportFactory(
       opened = false;
       for (const reject of [...pendingRequestFailures]) reject(error);
       for (const unsubscribe of [...subscriptionStops]) unsubscribe();
+      for (const stop of [...publisherStops]) stop();
       ros.removeAllListeners();
       transport?.close();
       if (reason === 'error') handlers.onError(error);
@@ -211,14 +220,19 @@ export function createRoslibTransportFactory(
        * topicを受信し、何度呼んでも安全な解除関数を返す。失敗は onError へ通知する。
        * bridgeに100ms間隔・待ち行列1件を指定するため、全メッセージの記録には使わない。
        */
-      subscribe(name, type, onMessage, onError) {
+      subscribe(name, type, onMessage, onError, options = {}) {
         if (!connected()) {
           onError(disconnectedError());
           return () => {};
         }
+        const throttleRateMs = options.throttleRateMs ?? 100;
+        const queueLength = options.queueLength ?? 1;
+        if (!Number.isSafeInteger(throttleRateMs) || throttleRateMs < 0
+          || !Number.isSafeInteger(queueLength) || queueLength < 1) throw new Error('ROSの購読設定が不正です。');
+        const qos = options.qos ? copyQos(options.qos) : undefined;
         const topic = new Topic({
           ros, name, messageType: type,
-          throttle_rate: 100, queue_length: 1, reconnect_on_close: false,
+          throttle_rate: throttleRateMs, queue_length: queueLength, reconnect_on_close: false,
         });
         let stopped = false;
         let statusId: string | undefined;
@@ -252,7 +266,9 @@ export function createRoslibTransportFactory(
             statusId = `status:${message.id}`;
             ros.on(statusId, onStatus);
           }
-          ros.callOnConnection(message);
+          // roslib 2.1のTopicにはqosの引数がないため、rosbridgeの購読メッセージへ明示する。
+          const configured = qos ? { ...message, qos } : message;
+          ros.callOnConnection(configured);
         };
         subscriptionStops.add(stop);
         try {
@@ -262,6 +278,57 @@ export function createRoslibTransportFactory(
           onError(asError(error));
         }
         return stop;
+      },
+
+      /** QoSを固定した発行元。エラー・切断後は再送せず、明示的に作り直す。 */
+      advertise(name, type, qos, onError) {
+        if (!connected()) throw disconnectedError();
+        const configuredQos = copyQos(qos);
+        const serial = ++requestId;
+        const advertiseId = `publisher:${serial}:advertise`;
+        const publishId = `publisher:${serial}:publish`;
+        let stopped = false;
+        let failure: Error | null = null;
+        const stop = () => {
+          if (stopped) return;
+          stopped = true;
+          publisherStops.delete(stop);
+          ros.off(`status:${advertiseId}`, onStatus);
+          ros.off(`status:${publishId}`, onStatus);
+          if (connected()) {
+            try { ros.callOnConnection({ op: 'unadvertise', id: advertiseId, topic: name }); }
+            catch { /* 古い発行元を再送しない。切断処理は接続イベント側で行う。 */ }
+          }
+        };
+        const fail = (error: Error) => {
+          if (stopped) return;
+          failure = error;
+          stop();
+          onError(error);
+        };
+        const onStatus = (message: RosbridgeMessage) => {
+          if (isRosbridgeStatusMessage(message) && message.level === 'error') fail(new Error(message.msg));
+        };
+        ros.on(`status:${advertiseId}`, onStatus);
+        ros.on(`status:${publishId}`, onStatus);
+        publisherStops.add(stop);
+        try {
+          // variable経由で、roslibの旧型定義にないROS 2のqosフィールドを保持する。
+          const advertisement = { op: 'advertise' as const, id: advertiseId, topic: name, type, qos: configuredQos };
+          ros.callOnConnection(advertisement);
+        } catch (error) { fail(asError(error)); throw error; }
+        if (stopped) throw failure ?? disconnectedError();
+        return {
+          publish(message) {
+            if (stopped || !connected()) throw failure ?? disconnectedError();
+            try {
+              // 同じ発行元のどのpublishが拒否されても発行元を停止するため、固定IDで監視する。
+              ros.callOnConnection({ op: 'publish', id: publishId, topic: name, msg: message });
+            } catch (error) { fail(asError(error)); throw error; }
+            if (stopped) throw failure ?? disconnectedError();
+          },
+          close: stop,
+        };
       },
     };
   };

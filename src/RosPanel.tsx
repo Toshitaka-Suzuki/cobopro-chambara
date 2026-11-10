@@ -87,7 +87,7 @@ export function RosPanel({ monitor }: { monitor: RosMonitor }) {
         <RosServiceExplorer id={id} monitor={monitor} snapshot={snapshot} />
       </div>
       <footer className="ros-footer">
-        <p className="ros-note">画面移動でもROS接続は維持します。このROS画面を離れるとtopicの購読を停止します。サービス要求は1回だけ送信し、切断や再接続で再送しません。ゲームとはまだ連動していません。</p>
+        <p className="ros-note">画面移動でもROS接続は維持します。この画面で選んだtopicの購読は、画面を離れると停止します。ロボットの状態監視は別に継続します。サービス要求は1回だけ送信し、切断や再接続で再送しません。ゲームとの連動はプレイ準備画面で選択します。</p>
       </footer>
     </div>
   );

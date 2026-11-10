@@ -18,9 +18,13 @@ type Props = {
   headingRef: RefObject<HTMLHeadingElement | null>;
   soundEnabled: boolean;
   onToggleSound: () => void;
+  onStartBattle?: () => void;
+  waitingForRobot?: boolean;
+  robotReturning?: boolean;
 };
 
-export function IntegratedExperience({ session, inputMode, sensor, audio, headingRef, soundEnabled, onToggleSound }: Props) {
+export function IntegratedExperience({ session, inputMode, sensor, audio, headingRef, soundEnabled, onToggleSound,
+  onStartBattle, waitingForRobot = false, robotReturning = false }: Props) {
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const sensorState = useSyncExternalStore(sensor.subscribeState, sensor.getSnapshot);
   const gameRef = useRef(snapshot.game);
@@ -65,10 +69,10 @@ export function IntegratedExperience({ session, inputMode, sensor, audio, headin
 
   useEffect(() => {
     headingRef.current?.focus();
-  }, [snapshot.phase, headingRef]);
+  }, [snapshot.phase, waitingForRobot, headingRef]);
 
-  if (snapshot.phase === 'countdown') {
-    return <Countdown headingRef={headingRef} audio={audio} inputMode={inputMode} onComplete={session.startBattle} />;
+  if (snapshot.phase === 'countdown' && !waitingForRobot) {
+    return <Countdown headingRef={headingRef} audio={audio} inputMode={inputMode} onComplete={onStartBattle ?? session.startBattle} />;
   }
   if (snapshot.phase === 'battle' || snapshot.phase === 'ending') {
     return <>
@@ -84,6 +88,7 @@ export function IntegratedExperience({ session, inputMode, sensor, audio, headin
   const complete = snapshot.phase === 'complete';
   const mock = snapshot.conversationMode !== 'live';
   const title = snapshot.error ? 'ゲームを中断しました'
+    : waitingForRobot ? 'ロボットの開始を確認しています'
     : pre ? 'どんな作戦で挑む？'
       : post ? 'やってみて、どうだった？'
         : complete ? 'お疲れさまでした！'
@@ -97,14 +102,15 @@ export function IntegratedExperience({ session, inputMode, sensor, audio, headin
     <div className="interview-content">
       <ol className="experience-steps" aria-label="ゲームの流れ">
         <li aria-current={pre ? 'step' : undefined}>作戦の会話</li>
-        <li aria-current={snapshot.phase === 'starting_battle' ? 'step' : undefined}>チャンバラ</li>
+        <li aria-current={snapshot.phase === 'starting_battle' || waitingForRobot ? 'step' : undefined}>チャンバラ</li>
         <li aria-current={post || complete ? 'step' : undefined}>感想の会話</li>
       </ol>
       <p className="setup-kicker">{pre ? '対戦前のインタビュー' : post ? '対戦後のインタビュー' : '会話・BGM連携'}</p>
       {(post || complete) && result && <p className="interview-result">{result}</p>}
       <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
       {snapshot.error ? <p role="alert" className="setup-notice">{snapshot.error}</p>
-        : (pre || post) ? <>
+        : waitingForRobot ? <p role="status">ロボットが戦闘中になったことを確認してから、BGMと対戦を始めます。制限時間はまだ進みません。</p>
+          : (pre || post) ? <>
           {!mock && snapshot.conversation ? <ConversationPanel progress={snapshot.conversation} /> : <>
             <p>{mock ? '会話の模擬動作を確認中です。約3秒で次へ進みます。' : 'ロボットの質問を聞いてから、マイクに向かって話してください。'}</p>
             <p className="interview-help">{mock ? 'このモードでは録音・返答の生成・読み上げは行いません。'
@@ -113,12 +119,12 @@ export function IntegratedExperience({ session, inputMode, sensor, audio, headin
           {pre && <p className="interview-help">会話中は制限時間を減らしません。</p>}
         </> : complete ? <>
           {snapshot.conversation && <ConversationPanel progress={snapshot.conversation} complete />}
-          <p>次のプレイを始める準備ができました。</p>
+          <p>{robotReturning ? 'ロボットの停止・復帰を確認しています。準備完了になるまで次のプレイは始められません。' : '感想の会話が終わりました。次のプレイは準備画面で接続と設定を確認してください。'}</p>
         </>
           : snapshot.phase === 'starting_battle' ? <p role="status">統合アプリのBGM開始を確認しています…</p> : null}
       <div className="interview-actions">
         {snapshot.phase === 'pre_interview' && <button type="button" onClick={session.skipInterview}>会話をスキップして対戦へ</button>}
-        {session.active ? <button type="button" onClick={cancel}>中断して準備に戻る</button>
+        {session.active ? <button type="button" onClick={cancel}>{post ? '会話を終了して準備に戻る' : '中断して準備に戻る'}</button>
           : <a className="start-game-button" href="#/play">{complete ? '次のプレイを準備する' : '接続と準備を確認する'} →</a>}
       </div>
     </div>

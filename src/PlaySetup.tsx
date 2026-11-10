@@ -21,15 +21,18 @@ type PlaySetupProps = {
   connectionControls: ReactNode;
   espReady: boolean;
   espControls: ReactNode;
+  robotControls?: ReactNode;
+  robotReady?: boolean;
+  robotHint?: string;
 };
 
 export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, notice, onStart,
   experienceMode, onExperienceModeChange, difficulty, onDifficultyChange, integrationReady, connectionControls,
-  espReady, espControls }: PlaySetupProps) {
+  espReady, espControls, robotControls, robotReady = true, robotHint }: PlaySetupProps) {
   const integrated = experienceMode === 'integrated';
   const esp = integrated && inputMode === 'esp';
   const inputReady = inputMode === 'mock' || (inputMode === 'sensor' && sensorState.ready) || (esp && espReady);
-  const canStart = inputReady && (!integrated || integrationReady);
+  const canStart = inputReady && (!integrated || (integrationReady && robotReady));
   return (
     <main className="setup-screen">
       <nav className="setup-navigation" aria-label="画面移動">
@@ -109,11 +112,14 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
           </div>
         ) : <p className="setup-notice">ESP連携は「会話・BGM連携」で使用できます。</p>}
 
+        {integrated && robotControls}
+
         <div className="start-game-area">
           <button className="start-game-button" disabled={!canStart} onClick={onStart} aria-describedby="start-game-hint">
             ゲーム開始 <span aria-hidden="true">→</span>
           </button>
           <p id="start-game-hint">{integrated && !integrationReady ? '統合アプリに接続して、準備完了になるまでお待ちください。'
+            : integrated && !robotReady ? robotHint || 'ロボットの接続と準備完了を確認してください。'
             : canStart ? integrated ? 'まず作戦を話しましょう。会話の後、カウントダウンで対戦が始まります。'
               : '3秒のカウントダウン後に始まります。' : esp ? '上の接続状態を確認し、ESP対応の統合アプリとXIAOに接続してください。'
                 : '管理画面で接続と入力を確認すると、開始できます。'}</p>

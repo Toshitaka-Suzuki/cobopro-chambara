@@ -12,13 +12,27 @@ export type RosTypeDef = {
   fieldarraylen: number[];
   examples?: string[];
 };
+export type RosQos = {
+  history: 'keep_last';
+  depth: number;
+  reliability: 'reliable';
+  durability: 'volatile' | 'transient_local';
+};
+export type RosSubscriptionOptions = { throttleRateMs?: number; queueLength?: number; qos?: RosQos };
+export type RosPublisher = {
+  /** 現在の接続へ即時送信する。ROS側の受付・動作完了を保証するものではない。 */
+  publish(message: Record<string, unknown>): void;
+  close(): void;
+};
 export type RosTransport = {
   /** 接続と進行中の通信を終了する。終了後の要求を再接続時に再送しない。 */
   close(): void;
   /** サービスへ一度だけ送信し、応答を返す。切断・中断・待ち時間超過は reject する。 */
   request(service: string, args: Record<string, unknown>, options: { signal: AbortSignal; timeoutMs: number }): Promise<unknown>;
   /** topic の受信を開始し、購読解除関数を返す。受信の失敗は onError へ通知する。 */
-  subscribe(topic: string, type: string, onMessage: (message: unknown) => void, onError: (error: Error) => void): () => void;
+  subscribe(topic: string, type: string, onMessage: (message: unknown) => void, onError: (error: Error) => void, options?: RosSubscriptionOptions): () => void;
+  /** 明示したQoSで発行元を作る。未対応の読み取り専用transportでは省略できる。 */
+  advertise?(topic: string, type: string, qos: RosQos, onError: (error: Error) => void): RosPublisher;
 };
 /** 通信ハンドルを直ちに返す。接続イベントは呼び出し元がハンドルを受け取った後に通知する。 */
 export type RosTransportFactory = (
@@ -77,6 +91,7 @@ type Session = {
   serviceController: AbortController | null;
   unsubscribe: (() => void) | null;
   topicGeneration: number;
+  externalStops: Set<() => void>;
   connectTimer: ReturnType<typeof setTimeout> | null;
 };
 type RosMonitorOptions = {
@@ -183,7 +198,7 @@ export class RosMonitor {
     }
     const session: Session = {
       transport: null, controller: new AbortController(), graphController: null,
-      serviceController: null, unsubscribe: null, topicGeneration: 0, connectTimer: null,
+      serviceController: null, unsubscribe: null, topicGeneration: 0, externalStops: new Set(), connectTimer: null,
     };
     this.session = session;
     this.update({
@@ -214,6 +229,61 @@ export class RosMonitor {
   /** 接続と購読を終了し、応答待ちを解除する。送信済みサービスの ROS 側での実行は取り消せない。 */
   disconnect(): void {
     if (this.session) this.endSession(this.session, null);
+  }
+
+  /** 管理画面の選択topicとは独立した購読。切断で破棄し、再接続では再開しない。 */
+  watchTopic(topic: string, type: string, onMessage: (message: unknown) => void,
+    onError: (error: Error) => void, options?: RosSubscriptionOptions): () => void {
+    const session = this.connectedSession();
+    if (!session) throw new Error('ROSに接続してから購読してください。');
+    let stopped = false;
+    let unsubscribe: (() => void) | undefined;
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      session.externalStops.delete(stop);
+      try { unsubscribe?.(); } catch { /* 切断後もこの購読を無効にする。 */ }
+    };
+    const current = () => !stopped && this.session === session && this.snapshot.status === 'connected';
+    session.externalStops.add(stop);
+    try {
+      unsubscribe = session.transport!.subscribe(topic, type,
+        message => { if (current()) onMessage(message); },
+        error => { if (current()) { stop(); onError(error); } }, options);
+      if (stopped) unsubscribe();
+    } catch (error) { stop(); throw error; }
+    return stop;
+  }
+
+  /** 現在の接続だけで有効な発行元。旧ハンドルは再接続後も送信できない。 */
+  createPublisher(topic: string, type: string, qos: RosQos, onError: (error: Error) => void): RosPublisher {
+    const session = this.connectedSession();
+    if (!session) throw new Error('ROSに接続してから発行してください。');
+    if (!session.transport!.advertise) throw new Error('このROS接続はtopicの送信に対応していません。');
+    let stopped = false;
+    let publisher: RosPublisher | undefined;
+    const close = () => {
+      if (stopped) return;
+      stopped = true;
+      session.externalStops.delete(close);
+      try { publisher?.close(); } catch { /* 切断済みの場合もハンドルを無効にする。 */ }
+    };
+    const current = () => !stopped && this.session === session && this.snapshot.status === 'connected';
+    session.externalStops.add(close);
+    try {
+      publisher = session.transport!.advertise(topic, type, qos, error => {
+        if (current()) { close(); onError(error); }
+      });
+      if (stopped) publisher.close();
+    } catch (error) { close(); throw error; }
+    return {
+      publish: message => {
+        if (!current() || !publisher) throw new Error('ROSの発行元は切断または終了しています。');
+        try { publisher.publish(message); }
+        catch (error) { close(); throw error; }
+      },
+      close,
+    };
   }
 
   /**
@@ -435,6 +505,7 @@ export class RosMonitor {
     if (this.session !== session) return;
     this.stopTopic();
     this.session = null;
+    for (const stop of [...session.externalStops]) stop();
     if (session.connectTimer) clearTimeout(session.connectTimer);
     session.controller.abort();
     session.graphController?.abort();

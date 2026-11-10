@@ -9,6 +9,9 @@ import {
   type RosbridgeMessage,
 } from 'roslib';
 import { createRoslibTransportFactory } from './roslibTransport.ts';
+import type { RosQos } from './ros.ts';
+
+const commandQos: RosQos = { history: 'keep_last', depth: 10, reliability: 'reliable', durability: 'volatile' };
 
 class FakeTransport extends AbstractTransport {
   state: 'connecting' | 'open' | 'closed' = 'connecting';
@@ -257,4 +260,88 @@ test('send failure cleans the request without scheduling a resend', async (t) =>
   source.sendError = null;
   source.open();
   assert.deepEqual(source.sent, []);
+});
+
+test('control subscriptions explicitly preserve ROS 2 QoS and do not throttle state events', async (t) => {
+  const { client, source } = await harness(t);
+  source.open();
+  const qos: RosQos = { ...commandQos, depth: 1, durability: 'transient_local' };
+  const messages: unknown[] = [];
+  const stop = client.subscribe('/chambara/battle/status', 'std_msgs/msg/String', value => messages.push(value),
+    error => assert.fail(error.message), { throttleRateMs: 0, queueLength: 10, qos });
+  assert.deepEqual(source.sent[0], {
+    op: 'subscribe', id: 'id' in source.sent[0] ? source.sent[0].id : undefined,
+    topic: '/chambara/battle/status', type: 'std_msgs/msg/String', compression: 'none',
+    throttle_rate: 0, queue_length: 10, qos,
+  });
+  source.receive({ op: 'publish', topic: '/chambara/battle/status', msg: { data: 'accepted' } });
+  source.receive({ op: 'publish', topic: '/chambara/battle/status', msg: { data: 'fighting' } });
+  assert.deepEqual(messages, [{ data: 'accepted' }, { data: 'fighting' }]);
+  stop();
+});
+
+test('publishers advertise explicit volatile QoS, send once, and close without retained queues', async (t) => {
+  const { client, source, ros } = await harness(t);
+  assert.throws(() => client.advertise!('/command', 'std_msgs/msg/String', commandQos, () => {}), /接続/);
+  source.open();
+  const baseline = ros.eventNames();
+  const publisher = client.advertise!('/command', 'std_msgs/msg/String', commandQos, error => assert.fail(error.message));
+  const advertisement = source.sent[0];
+  assert.deepEqual(advertisement, {
+    op: 'advertise', id: 'id' in advertisement ? advertisement.id : undefined,
+    topic: '/command', type: 'std_msgs/msg/String', qos: commandQos,
+  });
+  for (let n = 0; n < 100; n++) publisher.publish({ data: `command ${n}` });
+  assert.equal(source.sent.filter(item => item.op === 'publish').length, 100);
+  assert.equal(ros.eventNames().length, baseline.length + 2);
+  publisher.close();
+  publisher.close();
+  assert.equal(source.sent.filter(item => item.op === 'unadvertise').length, 1);
+  assert.throws(() => publisher.publish({ data: 'late' }), /接続/);
+  assert.deepEqual(ros.eventNames(), baseline);
+});
+
+test('advertise and publish rejection invalidate only the affected publisher and clean listeners', async (t) => {
+  const { client, source, ros } = await harness(t);
+  source.open();
+  const baseline = ros.eventNames();
+  const errors: Error[] = [];
+  source.onSend = message => {
+    if (message.op === 'advertise') source.receive({ op: 'status', id: message.id, level: 'error', msg: 'QoS rejected' });
+  };
+  assert.throws(() => client.advertise!('/denied', 'std_msgs/msg/String', commandQos, error => errors.push(error)), /QoS rejected/);
+  assert.equal(errors.length, 1);
+  assert.deepEqual(ros.eventNames(), baseline);
+  source.onSend = undefined;
+  const first = client.advertise!('/command', 'std_msgs/msg/String', commandQos, error => errors.push(error));
+  const second = client.advertise!('/heartbeat', 'std_msgs/msg/UInt8', commandQos, error => assert.fail(error.message));
+  first.publish({ data: 'start session 1' });
+  const sent = source.sent.at(-1)!;
+  source.receive({ op: 'status', id: 'id' in sent ? sent.id : undefined, level: 'error', msg: 'publish rejected' });
+  assert.equal(errors.length, 2);
+  assert.throws(() => first.publish({ data: 'retry' }), /publish rejected/);
+  second.publish({ data: 1 });
+  second.close();
+  assert.deepEqual(ros.eventNames(), baseline);
+});
+
+test('send failures and remote disconnect never replay or revive a publisher', async (t) => {
+  const { client, source, ros } = await harness(t);
+  source.open();
+  const errors: Error[] = [];
+  const first = client.advertise!('/command', 'std_msgs/msg/String', commandQos, error => errors.push(error));
+  source.sendError = new Error('write failed');
+  assert.throws(() => first.publish({ data: 'start session 1' }), /write failed/);
+  assert.equal(errors.length, 1);
+  source.sendError = null;
+  assert.throws(() => first.publish({ data: 'retry' }), /write failed/);
+  const second = client.advertise!('/heartbeat', 'std_msgs/msg/UInt8', commandQos, error => errors.push(error));
+  second.publish({ data: 1 });
+  const sent = source.sent.length;
+  source.remoteClose();
+  assert.equal(ros.eventNames().length, 0);
+  source.open();
+  assert.throws(() => second.publish({ data: 1 }), /接続/);
+  second.close();
+  assert.equal(source.sent.length, sent);
 });

@@ -28,8 +28,13 @@ export function lazyRosTransportFactory(load: RosTransportLoader = () => import(
         catch (error) { return Promise.reject(error); }
       },
       /** 生成済みの通信を購読する。準備前・切断後の呼び出しは例外にする。 */
-      subscribe(topic, type, onMessage, onError) {
-        return requireTransport().subscribe(topic, type, onMessage, onError);
+      subscribe(topic, type, onMessage, onError, options) {
+        return requireTransport().subscribe(topic, type, onMessage, onError, options);
+      },
+      advertise(topic, type, qos, onError) {
+        const ready = requireTransport();
+        if (!ready.advertise) throw new Error('このROS接続はtopicの送信に対応していません。');
+        return ready.advertise(topic, type, qos, onError);
       },
     };
   };
