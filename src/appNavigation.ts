@@ -1,10 +1,11 @@
-export type AppScreen = 'home' | 'play' | 'admin' | 'countdown' | 'game' | 'integrated';
+export type AppScreen = 'home' | 'play' | 'guide' | 'admin' | 'countdown' | 'game' | 'integrated';
 // ゲーム内の場面とは別に、開始手順と管理画面への一時退避を管理する。
 export type SessionPhase = 'idle' | 'countdown' | 'playing' | 'settings';
 
 export const SCREEN_HASHES: Record<AppScreen, string> = {
   home: '#/',
   play: '#/play',
+  guide: '#/play/guide',
   admin: '#/admin',
   countdown: '#/play/countdown',
   game: '#/play/game',
@@ -14,6 +15,7 @@ export const SCREEN_HASHES: Record<AppScreen, string> = {
 export const SCREEN_TITLES: Record<AppScreen, string> = {
   home: '画面を選択',
   play: 'プレイの準備',
+  guide: '遊び方',
   admin: '機器の設定',
   countdown: '開始カウントダウン',
   game: 'ゲーム画面',

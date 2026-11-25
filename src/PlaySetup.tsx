@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react';
+import { SCREEN_HASHES } from './appNavigation';
 import type { SwordSensorSnapshot } from './swordSensor';
 import { INPUT_MODE_LABELS } from './inputMode';
 import type { InputMode } from './inputMode';
@@ -45,6 +46,9 @@ export function PlaySetup({ headingRef, inputMode, onModeChange, sensorState, no
           <h1 ref={headingRef} tabIndex={-1}>プレイの準備</h1>
           <p>遊び方・難易度・入力方法を選んで、ゲームを始めましょう。</p>
         </header>
+        <a className="guide-entry-link" href={SCREEN_HASHES.guide}>
+          <span aria-hidden="true">▶</span> 遊び方を見る
+        </a>
 
         <fieldset className="input-mode-picker">
           <legend>遊び方</legend>

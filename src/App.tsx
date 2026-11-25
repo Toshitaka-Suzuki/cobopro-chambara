@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AdminScreen } from './AdminScreen';
 import { Countdown } from './Countdown';
+import { GameGuide } from './GameGuide';
 import { GameScreen } from './GameScreen';
 import { HomeScreen } from './HomeScreen';
 import { PlaySetup } from './PlaySetup';
@@ -153,6 +154,13 @@ export function App() {
       setSoundEnabled(false);
     }
   };
+
+  if (screen === 'guide') {
+    return <>
+      {robotState.busy && <RobotBattleStatus robot={robot} onAbort={() => robotLink.abort()} />}
+      <GameGuide headingRef={headingRef} />
+    </>;
+  }
 
   if (screen === 'play') {
     return <PlaySetup headingRef={headingRef} inputMode={inputMode} sensorState={sensorState}

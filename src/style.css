@@ -219,3 +219,22 @@ h1:focus { outline: none; }
   .screen-choice:hover { transform: none; }
   .countdown-value { animation: none; }
 }
+
+.guide-entry-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  min-height: 44px;
+  margin: 16px auto 0;
+  padding: 8px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.guide-entry-link span { color: var(--color-accent); font-size: 12px; }
+.guide-entry-link:hover { background: var(--color-surface-hover); border-color: var(--color-accent); }

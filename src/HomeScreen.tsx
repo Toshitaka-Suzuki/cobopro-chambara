@@ -1,4 +1,5 @@
 import type { Ref } from 'react';
+import { SCREEN_HASHES } from './appNavigation';
 
 function ScreenIcon({ kind }: { kind: 'play' | 'admin' }) {
   return (
@@ -35,6 +36,9 @@ export function HomeScreen({ headingRef, serialConnected }: HomeScreenProps) {
           <h1 ref={headingRef} tabIndex={-1}>画面を選択</h1>
           <p className="entry-description">使用する画面を選んでください。</p>
         </header>
+        <a className="guide-entry-link" href={SCREEN_HASHES.guide}>
+          <span aria-hidden="true">▶</span> 遊び方を見る
+        </a>
 
         <nav className="screen-choices" aria-label="画面選択">
           <a className="screen-choice play-choice" href="#/play" aria-labelledby="play-title">

@@ -5,6 +5,7 @@ import { resolveScreen, screenFromHash, sessionPhaseAfterNavigation } from './ap
 test('既存のURLを画面へ対応付け、不明なURLは画面選択へ戻す', () => {
   assert.equal(screenFromHash('#/'), 'home');
   assert.equal(screenFromHash('#/play'), 'play');
+  assert.equal(screenFromHash('#/play/guide'), 'guide');
   assert.equal(screenFromHash('#/admin'), 'admin');
   assert.equal(screenFromHash('#/play/countdown'), 'countdown');
   assert.equal(screenFromHash('#/play/game'), 'game');
@@ -14,6 +15,7 @@ test('既存のURLを画面へ対応付け、不明なURLは画面選択へ戻�
 });
 
 test('直リンク・再読み込みではカウントダウンとゲームを開始しない', () => {
+  assert.equal(resolveScreen('guide', 'idle'), 'guide');
   assert.equal(resolveScreen('countdown', 'idle'), 'play');
   assert.equal(resolveScreen('game', 'idle'), 'play');
   assert.equal(resolveScreen('game', 'countdown'), 'play');
@@ -37,6 +39,7 @@ test('準備・画面選択への移動は中断中のゲームやカウント�
   for (const phase of ['countdown', 'playing', 'settings'] as const) {
     assert.equal(sessionPhaseAfterNavigation('play', phase, true), 'idle');
     assert.equal(sessionPhaseAfterNavigation('home', phase, true), 'idle');
+    assert.equal(sessionPhaseAfterNavigation('guide', phase, true), 'idle');
   }
   assert.equal(sessionPhaseAfterNavigation('admin', 'countdown', false), 'idle');
   assert.equal(sessionPhaseAfterNavigation('admin', 'playing', false), 'idle');
